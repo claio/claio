@@ -1,0 +1,23 @@
+# permissions for end users to view controlplanes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: claio
+    app.kubernetes.io/managed-by: kustomize
+  name: controlplane-viewer-role
+rules:
+- apiGroups:
+  - claio.github.com
+  resources:
+  - controlplanes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - claio.github.com
+  resources:
+  - controlplanes/status
+  verbs:
+  - get

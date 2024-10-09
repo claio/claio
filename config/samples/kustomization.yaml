@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- claio_v1alpha1_controlplane.yaml
+- claio_v1alpha1_machine.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

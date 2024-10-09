@@ -1,0 +1,23 @@
+# permissions for end users to view machines.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: claio
+    app.kubernetes.io/managed-by: kustomize
+  name: machine-viewer-role
+rules:
+- apiGroups:
+  - claio.github.com
+  resources:
+  - machines
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - claio.github.com
+  resources:
+  - machines/status
+  verbs:
+  - get
