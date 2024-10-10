@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: claio-kine-mariadb
+  namespace: claio-system
+  labels:
+    app: mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+      - name: mariadb
+        image: mariadb:11.4
+        env:
+          - name: MYSQL_DATABASE
+            value: kine
+          - name: MARIADB_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: claio-kine-mariadb
+                key: root-password
+        volumeMounts:
+          - name: mariadb
+            mountPath: /etc/mysql/conf.d
+            readOnly: true
+      volumes:
+        - name: mariadb
+          secret:
+            secretName: claio-kine-mariadb  
+---
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: claio-kine-mariadb
+  namespace: claio-system
+spec:
+  selector:
+    app.kubernetes.io/name: claio-kine-mariadb
+  ports:
+    - name: mariadb
+      port: 3306
+      protocol: TCP

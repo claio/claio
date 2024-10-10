@@ -39,7 +39,7 @@ spec:
           spec:
             description: ControlPlaneSpec defines the desired state of ControlPlane
             properties:
-              foo:
+              version:
                 description: Foo is an example field of ControlPlane. Edit controlplane_types.go
                   to remove/update
                 type: string

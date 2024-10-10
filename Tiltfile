@@ -22,19 +22,23 @@ local(generate() + manifests())
 
 local_resource( 'CRDs', 
                 manifests() + 'kubectl apply -k config/crd', 
-                deps=['api'])
+                deps=['api'],
+                labels=["controller"])
 
 local_resource( 'Compile', 
                 generate() + compile(),                
                 deps=['internal/controller', 'cmd/main.go', 'api'],
-                ignore=['*/*/zz_generated.deepcopy.go'])
+                ignore=['*/*/zz_generated.deepcopy.go'],
+                labels=["controller"])
 
 local_resource( 'Tests', 
                 'kubectl apply -k config/samples',
                 deps=['config/samples'],
-                resource_deps=['claio-controller-manager'])
+                resource_deps=['claio-controller-manager'],
+                labels=["controller"])
 
 k8s_yaml(local('kustomize build config/default'))
+k8s_resource('claio-controller-manager', labels=['controller'])
 
 docker_build_with_restart('controller:latest', '.', 
     dockerfile_contents=DOCKERFILE,
@@ -44,3 +48,5 @@ docker_build_with_restart('controller:latest', '.',
         sync('./tilt_bin/manager', '/app/manager'),
     ]
 )
+
+include('./kine/Tiltfile')
