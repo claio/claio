@@ -31,12 +31,6 @@ local_resource( 'Compile',
                 ignore=['*/*/zz_generated.deepcopy.go'],
                 labels=["controller"])
 
-local_resource( 'Tests', 
-                'kubectl apply -k config/samples',
-                deps=['config/samples'],
-                resource_deps=['claio-controller-manager'],
-                labels=["controller"])
-
 k8s_yaml(local('kustomize build config/default'))
 k8s_resource('claio-controller-manager', labels=['controller'])
 
@@ -50,3 +44,4 @@ docker_build_with_restart('controller:latest', '.',
 )
 
 include('./kine/Tiltfile')
+include('./config/samples/Tiltfile')

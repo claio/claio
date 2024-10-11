@@ -1,0 +1,10 @@
+
+local_resource( 'Sample - Control Plane', 
+                'kubectl apply -f claio_v1alpha1_controlplane.yaml',
+                deps=["claio_v1alpha1_controlplane.yaml"],
+                labels=["controller"])
+
+local_resource( 'Sample - Machine', 
+                'kubectl apply -f claio_v1alpha1_machine.yaml',
+                deps=["claio_v1alpha1_machine.yaml"],
+                labels=["controller"])
