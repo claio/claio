@@ -1,5 +1,5 @@
 # claio
-A hosted control plane and machine controller (all in one).
+A hosted control plane and machine controller manager (all in one).
 
 ## Development
 
