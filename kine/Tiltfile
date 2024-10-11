@@ -7,3 +7,7 @@ k8s_yaml(['kine.yaml', 'mariadb.yaml', 'secrets.yaml'])
 k8s_resource('claio-kine-mariadb', port_forwards="3306", labels=['kine'])
 k8s_resource('claio-kine', port_forwards="2379", labels=['kine'])
 
+# --- tests ------------------------------
+
+local_resource('kine-tests', 'tests/tests.sh', deps=["tests"], labels=['kine'])
+
