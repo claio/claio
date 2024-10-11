@@ -4,16 +4,16 @@ metadata:
   name: claio-kine
   namespace: claio-system
   labels:
-    app: kine
+    app: claio-kine
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kine
+      app: claio-kine
   template:
     metadata:
       labels:
-        app: kine
+        app: claio-kine
     spec:
       terminationGracePeriodSeconds: 5
       containers:
@@ -27,7 +27,7 @@ spec:
                 key: root-password
         args:
           - --endpoint 
-          - "mysql://root:${MARIADB_ROOT_PASSWORD}@tcp(claio-kine-mariadb:3306)/kine"
+          - "mysql://root:$(MARIADB_ROOT_PASSWORD)@tcp(claio-kine-mariadb:3306)/kine_default"
           - --ca-file
           - /etc/kine/secrets/ca.crt
           - --cert-file
@@ -50,7 +50,7 @@ metadata:
   namespace: claio-system
 spec:
   selector:
-    app.kubernetes.io/name: claio-kine
+    app: claio-kine
   ports:
     - name: kine
       port: 2379

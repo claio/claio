@@ -4,16 +4,16 @@ metadata:
   name: claio-kine-mariadb
   namespace: claio-system
   labels:
-    app: mariadb
+    app: claio-kine-mariadb
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mariadb
+      app: claio-kine-mariadb
   template:
     metadata:
       labels:
-        app: mariadb
+        app: claio-kine-mariadb
     spec:
       terminationGracePeriodSeconds: 5
       containers:
@@ -36,7 +36,6 @@ spec:
           secret:
             secretName: claio-kine-mariadb  
 ---
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -44,8 +43,9 @@ metadata:
   namespace: claio-system
 spec:
   selector:
-    app.kubernetes.io/name: claio-kine-mariadb
+    app: claio-kine-mariadb
   ports:
     - name: mariadb
       port: 3306
+      targetPort: 3306
       protocol: TCP
