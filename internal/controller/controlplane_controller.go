@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	claiov1alpha1 "claio/api/v1alpha1"
+	"claio/internal/certificates"
 )
 
 // ControlPlaneReconciler reconciles a ControlPlane object
@@ -53,6 +54,11 @@ func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	res := &claiov1alpha1.ControlPlane{}
 	r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, res)
 	log.Info(res.Spec.Version)
+
+	err := certificates.CreateSecrets()
+	if err != nil {
+		log.Error(err, "failed to create secrets")
+	}
 
 	return ctrl.Result{}, nil
 }

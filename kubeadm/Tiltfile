@@ -1,0 +1,15 @@
+# TODO: remove folder kubeadm
+RELEASE='v1.31.1'
+
+build_args={}
+if os.getenv('HTTPS_PROXY'):
+    build_args['https_proxy'] = os.environ['HTTPS_PROXY']
+    build_args['RELEASE'] = RELEASE
+
+docker_build('claio/claio-kubeadm:' + RELEASE, '.', 
+    build_args=build_args, 
+    only=['./Dockerfile'],
+)
+
+k8s_yaml('claio-kubeadm.yaml')
+k8s_resource('claio-kubeadm', labels=['kubeadm'])

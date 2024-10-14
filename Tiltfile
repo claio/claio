@@ -27,7 +27,7 @@ local_resource( 'CRDs',
 
 local_resource( 'Compile', 
                 generate() + compile(),                
-                deps=['internal/controller', 'cmd/main.go', 'api'],
+                deps=['internal', 'cmd/main.go', 'api'],
                 ignore=['*/*/zz_generated.deepcopy.go'],
                 labels=["controller"])
 
