@@ -8,3 +8,5 @@ local_resource( 'Sample - Machine',
                 'kubectl apply -f claio_v1alpha1_machine.yaml',
                 deps=["claio_v1alpha1_machine.yaml"],
                 labels=["controller"])
+
+

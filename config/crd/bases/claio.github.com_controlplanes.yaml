@@ -39,11 +39,20 @@ spec:
           spec:
             description: ControlPlaneSpec defines the desired state of ControlPlane
             properties:
-              version:
+              advertise-address:
+                type: string
+              advertise-host:
+                type: string
+              name:
                 description: Foo is an example field of ControlPlane. Edit controlplane_types.go
                   to remove/update
                 type: string
+              version:
+                type: string
             required:
+            - advertise-address
+            - advertise-host
+            - name
             - version
             type: object
           status:

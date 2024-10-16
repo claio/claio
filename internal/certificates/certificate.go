@@ -1,3 +1,19 @@
+/*
+Copyright 2024.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package certificates
 
 import (
@@ -15,73 +31,132 @@ import (
 )
 
 type Certificate struct {
-	Name           string
-	Cert           *x509.Certificate
-	CertPrivateKey *rsa.PrivateKey
-	CertPEM        string
-	KeyPEM         string
+	Name    string
+	Cert    *x509.Certificate
+	RawCert []byte
+	Key     *rsa.PrivateKey
+	PEM     *CertificatePEM
 }
 
-func CreateCertificate(name string, ca *Certificate) (*Certificate, error) {
-	// ca == nil --> create CA else certificate signed by CA
+type CertificatePEM struct {
+	Key  string
+	Cert string
+}
+
+type CertificateCreator func(ca *CertificatePEM, advertisedName *string, advertisedIp *string) (*Certificate, error)
+
+func CreateCaCert(ca *CertificatePEM, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+	cert := &x509.Certificate{
+		SerialNumber:          big.NewInt(0),
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		Issuer:                pkix.Name{CommonName: "kubernetes"},
+		Subject:               pkix.Name{CommonName: "kubernetes"},
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageCertSign,
+	}
+	return createCert("ca", cert, nil)
+}
+
+func CreateKubeApiServerCert(ca *Certificate, dnsnames []string, ipStrings []string) (*Certificate, error) {
+	log.Printf("Create 'apiserver' certificate ...")
+	dns := append([]string{
+		"kubernetes", "kubernetes.default",
+		"kubernetes.default.svc", "kubernetes.default.svc.cluster.local"}, dnsnames...)
+	ips := []net.IP{net.IPv4(192, 168, 128, 1)}
+	for _, ipString := range ipStrings {
+		ip := net.ParseIP(ipString)
+		if ip == nil {
+			return nil, fmt.Errorf("invalid IP address: %s", ipString)
+		}
+		ips = append(ips, ip)
+	}
+
 	cert := &x509.Certificate{
 		SerialNumber: getSerial(),
-		Subject:      getPkixName(),
+		Subject:      pkix.Name{CommonName: "kube-apiserver"},
 		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(10, 0, 0),
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		NotAfter:     time.Now().AddDate(1, 0, 0),
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		DNSNames:     dns,
+		IPAddresses:  ips,
 	}
-	if ca == nil {
-		log.Printf("Create CA certificate ...")
-		cert.IsCA = true
-		cert.BasicConstraintsValid = true
-		cert.KeyUsage = x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign
-	} else {
-		log.Printf("Create certificate for '%s' signed by own CA ...", name)
-		cert.IPAddresses = []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback}
-		cert.SubjectKeyId = []byte{1, 2, 3, 4, 6}
-		cert.KeyUsage = x509.KeyUsageDigitalSignature
-	}
-	return createCert(name, cert, ca)
+
+	return createCert("apiserver", cert, ca)
 }
 
-// --- helpers ------------------------------------------------
+func CreateFrontProxyCaCert() (*Certificate, error) {
+	log.Printf("Create 'front-proxy-ca' certificate ...")
+	cert := &x509.Certificate{
+		SerialNumber:          big.NewInt(0),
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		Issuer:                pkix.Name{CommonName: "front-proxy-ca"},
+		Subject:               pkix.Name{CommonName: "front-proxy-ca"},
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageCertSign,
+	}
+	return createCert("front-proxy-ca", cert, nil)
+}
 
+func CreateFrontProxyClientCert(ca *Certificate) (*Certificate, error) {
+	log.Printf("Create 'front-proxy-client' certificate ...")
+	cert := &x509.Certificate{
+		SerialNumber: getSerial(),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(1, 0, 0),
+		Subject:      pkix.Name{CommonName: "front-proxy-client"},
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	return createCert("front-proxy-client", cert, ca)
+}
+
+func CreateApiServerKubeletClientCert(ca *Certificate) (*Certificate, error) {
+	log.Printf("Create 'apiserver-kubelet-client' certificate ...")
+	cert := &x509.Certificate{
+		SerialNumber: getSerial(),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(1, 0, 0),
+		Subject:      pkix.Name{CommonName: "kube-apiserver-kubelet-client", Organization: []string{"kubeadm:cluster-admins"}},
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	return createCert("apiserver-kubelet-client", cert, ca)
+}
+
+// --- helpers -----------------------------------------------------------
 func getSerial() *big.Int {
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 62)
 	serial, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		return big.NewInt(0)
+		return big.NewInt(1)
 	}
 	return serial
 }
 
-func getPkixName() pkix.Name {
-	return pkix.Name{
-		Organization:  []string{"Claio"},
-		Country:       []string{"AT"},
-		Province:      []string{"STMK"},
-		Locality:      []string{"Graz"},
-		StreetAddress: []string{"Claio"},
-		PostalCode:    []string{"8501"},
-	}
-}
-
+// --- helpers ------------------------------------------------
 func createCert(name string, cert *x509.Certificate, ca *Certificate) (*Certificate, error) {
 	// create private key
-	certPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	certPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate private key: %s", err)
 	}
 
 	// create certificate
 	caCert := cert
-	caCertPrivateKey := certPrivateKey
+	caKey := certPrivateKey
 	if ca != nil {
-		caCert = ca.Cert
-		caCertPrivateKey = ca.CertPrivateKey
+		caCert, err = x509.ParseCertificate(ca.RawCert)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse CA certificate: %s", err)
+		}
+		caKey = ca.Key
 	}
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, caCert, &certPrivateKey.PublicKey, caCertPrivateKey)
+	certBytes, err := x509.CreateCertificate(rand.Reader, cert, caCert, &certPrivateKey.PublicKey, caKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create certificate: %s", err)
 	}
@@ -99,10 +174,10 @@ func createCert(name string, cert *x509.Certificate, ca *Certificate) (*Certific
 	})
 
 	return &Certificate{
-		Name:           name,
-		Cert:           cert,
-		CertPrivateKey: certPrivateKey,
-		CertPEM:        certPEM.String(),
-		KeyPEM:         certPrivKeyPEM.String(),
+		Name:    name,
+		Cert:    cert,
+		RawCert: certBytes,
+		Key:     certPrivateKey,
+		PEM:     &CertificatePEM{Cert: certPEM.String(), Key: certPrivKeyPEM.String()},
 	}, nil
 }

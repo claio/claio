@@ -29,7 +29,10 @@ type ControlPlaneSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of ControlPlane. Edit controlplane_types.go to remove/update
-	Version string `json:"version"`
+	Name             string `json:"name"`
+	Version          string `json:"version"`
+	AdvertiseAddress string `json:"advertise-address"`
+	AdvertiseHost    string `json:"advertise-host"`
 }
 
 // ControlPlaneStatus defines the observed state of ControlPlane

@@ -6,5 +6,8 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: controlplane-sample
 spec:
+  name: sample
   version: 1.31.1
+  advertise-host: vlopnai003.at.inside
+  advertise-address: 10.8.20.33
   
