@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -56,17 +57,18 @@ type ControlPlaneReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.18.2/pkg/reconcile
 func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := utils.NewLog("ControlPlane", req.Namespace, req.Name)
+	log.Info("--- Reconciling --------------------------------------")
 
 	// fetch the ControlPlane instance
 	res := &claiov1alpha1.ControlPlane{}
 	r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, res)
 
 	// check secrets (create them if necessary)
-	err := r.checkSecrets(req.Namespace, res.Spec, ctx, log)
+	err := r.checkSecrets(req.Namespace, res, ctx, log)
 	if err != nil {
 		log.Error(err, "failed to create secrets")
 	}
-	log.Info("secrets done")
+	log.Info("Reconciling done")
 
 	return ctrl.Result{}, nil
 }
@@ -75,10 +77,33 @@ func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *ControlPlaneReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&claiov1alpha1.ControlPlane{}).
+		Owns(&corev1.Secret{}).
 		Complete(r)
 }
 
 // ---------------------------------------------------
+func (r *ControlPlaneReconciler) checkSecrets(namespace string, res *claiov1alpha1.ControlPlane, ctx context.Context, log *utils.Log) error {
+	log.Info("Check secrets ...")
+	caCert, err := r.checkSecret(namespace, "ca", nil, certificates.NewCaCert, res, ctx, log)
+	if err != nil {
+		return err
+	}
+	if _, err := r.checkSecret(namespace, "apiserver", caCert, certificates.NewApiserverCert, res, ctx, log); err != nil {
+		return err
+	}
+	if _, err := r.checkSecret(namespace, "apiserver-kubelet-client", caCert, certificates.NewApiserverKubeletClientCert, res, ctx, log); err != nil {
+		return err
+	}
+	frontProxyCaCert, err := r.checkSecret(namespace, "front-proxy-ca", nil, certificates.NewFrontProxyCaCert, res, ctx, log)
+	if err != nil {
+		return err
+	}
+	if _, err := r.checkSecret(namespace, "front-proxy-client", frontProxyCaCert, certificates.NewFrontProxyClientCert, res, ctx, log); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *ControlPlaneReconciler) getSecret(namespace string, name string, ctx context.Context) (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
 	if err := r.Get(
@@ -97,26 +122,26 @@ func (r *ControlPlaneReconciler) getSecret(namespace string, name string, ctx co
 	return secret, nil
 }
 
-func (r *ControlPlaneReconciler) checkSecret(namespace string, name string, ca *certificates.CertificatePEM, fn certificates.CertificateCreator, spec claiov1alpha1.ControlPlaneSpec, ctx context.Context, log *utils.Log) (pem *certificates.CertificatePEM, err error) {
+func (r *ControlPlaneReconciler) checkSecret(namespace string, name string, ca *certificates.Certificate, fn certificates.CertificateCreator, res *claiov1alpha1.ControlPlane, ctx context.Context, log *utils.Log) (pem *certificates.Certificate, err error) {
 	secret, err := r.getSecret(namespace, name, ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("  failed to get secret %s/%s: %s", namespace, name, err)
 	}
 	if secret != nil {
-		return &certificates.CertificatePEM{
+		return &certificates.Certificate{
 			Cert: string(secret.Data[name+".crt"]),
 			Key:  string(secret.Data[name+".key"]),
 		}, nil
 	}
 	log.Info("   create certificate and secret: %s", name)
-	cert, err := fn(ca, &spec.AdvertiseHost, &spec.AdvertiseAddress)
+	cert, err := fn(namespace, name, ca, &res.Spec.AdvertiseHost, &res.Spec.AdvertiseAddress)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("  failed to get secret %s: %s", name, err)
 	}
 	// create secret
 	data := make(map[string][]byte)
-	data[name+".crt"] = []byte(cert.PEM.Cert)
-	data[name+".key"] = []byte(cert.PEM.Key)
+	data[name+".crt"] = []byte(cert.Cert)
+	data[name+".key"] = []byte(cert.Key)
 	secret = &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -124,17 +149,11 @@ func (r *ControlPlaneReconciler) checkSecret(namespace string, name string, ca *
 		},
 		Data: data,
 	}
+	if err := ctrl.SetControllerReference(res, secret, r.Scheme); err != nil {
+		return nil, fmt.Errorf("   cannot set owner-reference on secret %s/%s: %s", namespace, name, err)
+	}
 	if err := r.Create(ctx, secret); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("  failed to create secret %s/%s: %s", namespace, name, err)
 	}
-	return cert.PEM, nil
-}
-
-func (r *ControlPlaneReconciler) checkSecrets(namespace string, spec claiov1alpha1.ControlPlaneSpec, ctx context.Context, log *utils.Log) error {
-	log.Info("Check secrets ...")
-	_, err := r.checkSecret(namespace, "ca", nil, certificates.CreateCaCert, spec, ctx, log)
-	if err != nil {
-		return err
-	}
-	return nil
+	return cert, nil
 }

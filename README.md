@@ -1,16 +1,20 @@
 # claio
+
 A hosted control plane and machine controller manager (all in one).
+
+[!NOTE]
+This project is in a very early stage. At the moment it is not even ready for development.
 
 ## Development
 
 ```sh
 # start
-./scripts/dev-cluster.sh start
+./scripts/cluster.sh start
 ./tilt up
 
 # stop
 ./tilt down --delete-namespaces
-./scripts/dev-cluster.sh stop
+./scripts/cluster.sh stop
 ```
 
 ### Installation History (not needed anymore)
