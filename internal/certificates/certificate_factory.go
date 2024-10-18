@@ -107,6 +107,32 @@ func NewApiserverKubeletClientCert(namespace string, name string, ca *Certificat
 	return createCert(namespace, name, cert, ca)
 }
 
+// we handle the SA RSA pub/priv key pair like a normal cert (to simply coding)
+func NewSaRSA(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate private key: %s", err)
+	}
+	privKeyPEM := new(bytes.Buffer)
+	pem.Encode(privKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+	})
+	publicKeyPEM := new(bytes.Buffer)
+	pem.Encode(publicKeyPEM, &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: x509.MarshalPKCS1PublicKey(&privateKey.PublicKey),
+	})
+	return &Certificate{
+		Name:      name,
+		Namespace: namespace,
+		Pub:       publicKeyPEM.String(),
+		Key:       privKeyPEM.String(),
+		Cert:      "",
+	}, nil
+
+}
+
 // --- helpers -----------------------------------------------------------
 func getSerial() *big.Int {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 62)
@@ -159,5 +185,7 @@ func createCert(namespace string, name string, cert *x509.Certificate, ca *Certi
 		Name:      name,
 		Namespace: namespace,
 		Cert:      certPEM.String(),
-		Key:       certPrivKeyPEM.String()}, nil
+		Key:       certPrivKeyPEM.String(),
+		Pub:       "",
+	}, nil
 }

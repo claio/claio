@@ -101,6 +101,9 @@ func (r *ControlPlaneReconciler) checkSecrets(namespace string, res *claiov1alph
 	if _, err := r.checkSecret(namespace, "front-proxy-client", frontProxyCaCert, certificates.NewFrontProxyClientCert, res, ctx, log); err != nil {
 		return err
 	}
+	if _, err := r.checkSecret(namespace, "sa", nil, certificates.NewSaRSA, res, ctx, log); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -128,10 +131,20 @@ func (r *ControlPlaneReconciler) checkSecret(namespace string, name string, ca *
 		return nil, fmt.Errorf("  failed to get secret %s/%s: %s", namespace, name, err)
 	}
 	if secret != nil {
-		return &certificates.Certificate{
-			Cert: string(secret.Data[name+".crt"]),
-			Key:  string(secret.Data[name+".key"]),
-		}, nil
+		cert := certificates.Certificate{
+			Name:      name,
+			Namespace: namespace,
+			Key:       string(secret.Data[name+".key"]),
+			Cert:      "",
+			Pub:       "",
+		}
+		if _, found := secret.Data[name+".crt"]; found {
+			cert.Cert = string(secret.Data[name+".crt"])
+		}
+		if _, found := secret.Data[name+".pub"]; found {
+			cert.Pub = string(secret.Data[name+".pub"])
+		}
+		return &cert, nil
 	}
 	log.Info("   create certificate and secret: %s", name)
 	cert, err := fn(namespace, name, ca, &res.Spec.AdvertiseHost, &res.Spec.AdvertiseAddress)
@@ -140,8 +153,13 @@ func (r *ControlPlaneReconciler) checkSecret(namespace string, name string, ca *
 	}
 	// create secret
 	data := make(map[string][]byte)
-	data[name+".crt"] = []byte(cert.Cert)
 	data[name+".key"] = []byte(cert.Key)
+	if cert.Cert != "" {
+		data[name+".crt"] = []byte(cert.Cert)
+	}
+	if cert.Pub != "" {
+		data[name+".pub"] = []byte(cert.Pub)
+	}
 	secret = &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,

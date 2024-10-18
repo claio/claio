@@ -28,9 +28,13 @@ type Certificate struct {
 	Namespace string
 	Key       string
 	Cert      string
+	Pub       string
 }
 
 func (c *Certificate) GetCert() (*x509.Certificate, error) {
+	if c.Cert == "" {
+		return nil, fmt.Errorf("no certificate set")
+	}
 	block, _ := pem.Decode([]byte(c.Cert))
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode certificate from PEM")
@@ -52,4 +56,19 @@ func (c *Certificate) GetKey() (*rsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to parse private key: %s", err)
 	}
 	return cert, nil
+}
+
+func (c *Certificate) GetPub() (*rsa.PublicKey, error) {
+	if c.Pub == "" {
+		return nil, fmt.Errorf("no public-key set")
+	}
+	block, _ := pem.Decode([]byte(c.Pub))
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode public-key from PEM")
+	}
+	pub, err := x509.ParsePKCS1PublicKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public-key: %s", err)
+	}
+	return pub, nil
 }
