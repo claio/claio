@@ -43,7 +43,7 @@ function portforward() {
 }
 
 case "$1" in
-    start)        
+    up)        
         if [ $remote_docker == "true" ]; then
             echo -n "start portforward service: "        
             docker run -d -it --name claio-portforward --net=host --entrypoint=/bin/sh \
@@ -56,7 +56,7 @@ case "$1" in
         echo "create registry and kind cluster"
         echo "$manifests" | ctlptl apply -f -      
         ;;
-    stop)
+    down)
         echo "$manifests" | ctlptl delete -f -        
         pkill socat 2>/dev/null 1>/dev/null
         docker rm -f claio-portforward 2>/dev/null 1>/dev/null
