@@ -2,8 +2,8 @@
 
 A hosted control plane and machine controller manager (all in one).
 
-[!NOTE]
-This project is in a very early stage. At the moment it is not even ready for development.
+> [!IMPORTANT]
+> This project is in a very early stage. At the moment it is not even ready for development.
 
 ## Development
 
