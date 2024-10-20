@@ -45,3 +45,4 @@ docker_build_with_restart('controller:latest', '.',
 
 include('./kine/Tiltfile')
 include('./config/samples/Tiltfile')
+include('./tmp-manifests/Tiltfile')

@@ -118,10 +118,14 @@ func NewSaRSA(namespace string, name string, ca *Certificate, advertisedName *st
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
 	})
+	der, err := x509.MarshalPKIXPublicKey(privateKey.Public())
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal public key: %s", err)
+	}
 	publicKeyPEM := new(bytes.Buffer)
 	pem.Encode(publicKeyPEM, &pem.Block{
 		Type:  "PUBLIC KEY",
-		Bytes: x509.MarshalPKCS1PublicKey(&privateKey.PublicKey),
+		Bytes: der,
 	})
 	return &Certificate{
 		Name:      name,
