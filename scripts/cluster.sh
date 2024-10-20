@@ -5,7 +5,7 @@ REGISTRY_PORT=5005
 remote_docker=true
 
 function usage() {
-    echo "$0 start|stop"
+    echo "$0 up|down"
     exit 1
 }
 
