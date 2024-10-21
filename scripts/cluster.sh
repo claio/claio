@@ -57,6 +57,7 @@ case "$1" in
         echo "$manifests" | ctlptl apply -f -      
         ;;
     down)
+        tilt down
         echo "$manifests" | ctlptl delete -f -        
         pkill socat 2>/dev/null 1>/dev/null
         docker rm -f claio-portforward 2>/dev/null 1>/dev/null
