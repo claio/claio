@@ -57,12 +57,13 @@ func NewApiserverCert(namespace string, name string, ca *Certificate, advertised
 		NotAfter:     time.Now().AddDate(1, 0, 0),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		IPAddresses:  []net.IP{net.IPv4(192, 168, 128, 1), ip},
+		IPAddresses:  []net.IP{net.IPv4(192, 168, 128, 1), net.IPv4(127, 0, 0, 1), ip},
 		DNSNames: []string{
 			"kubernetes",
 			"kubernetes.default",
 			"kubernetes.default.svc",
 			"kubernetes.default.svc.cluster.local",
+			"localhost",
 			*advertisedName},
 	}
 
@@ -100,9 +101,21 @@ func NewApiserverKubeletClientCert(namespace string, name string, ca *Certificat
 		SerialNumber: getSerial(),
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(1, 0, 0),
-		Subject:      pkix.Name{CommonName: "kube-apiserver-kubelet-client", Organization: []string{"kubeadm:cluster-admins"}},
+		Subject:      pkix.Name{CommonName: "kube-apiserver-kubelet-client", Organization: []string{"system:masters"}},
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	return createCert(namespace, name, cert, ca)
+}
+
+func NewKubernetesAdminCert(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+	cert := &x509.Certificate{
+		SerialNumber: getSerial(),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(1, 0, 0),
+		Subject:      pkix.Name{CommonName: "kubernetes-admin", Organization: []string{"system:masters"}},
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
 	return createCert(namespace, name, cert, ca)
 }

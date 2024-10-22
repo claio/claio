@@ -32,6 +32,8 @@ name: kind-claio
 kindV1Alpha4Cluster:
     networking:
         apiServerPort: ${API_PORT}
+        podSubnet: 192.168.0.0/17
+        serviceSubnet: 192.168.128.0/17
     nodes:
         - role: control-plane
 EOF

@@ -1,2 +1,0 @@
-k8s_yaml(['cluster.yaml'])
-k8s_resource('test', port_forwards="6543", labels=['cluster'])

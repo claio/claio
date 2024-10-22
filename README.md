@@ -9,12 +9,12 @@ A hosted control plane and machine controller manager (all in one).
 
 ```sh
 # start
-./scripts/cluster.sh up
+./cluster.sh up
 ./tilt up
 
 # stop
 ./tilt down --delete-namespaces
-./scripts/cluster.sh down
+./cluster.sh down
 ```
 
 ### Installation History (not needed anymore)

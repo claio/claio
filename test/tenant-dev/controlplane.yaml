@@ -4,10 +4,11 @@ metadata:
   labels:
     app.kubernetes.io/name: claio
     app.kubernetes.io/managed-by: kustomize
-  name: controlplane-sample
+  name: control-plane
+  namespace: tenant-dev
 spec:
   name: sample
   version: 1.31.1
-  advertise-host: test-host
-  advertise-address: 1.1.1.1
+  advertise-host: localhost
+  advertise-address: 127.0.0.1
   
