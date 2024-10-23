@@ -32,15 +32,14 @@ clusters:
       certificate-authority-data: {{ .CACertData }}
       server: "https://{{ .Server }}:6543"
 contexts:
-  - name: admin@{{ .ClusterName }}
+  - name: {{ .User }}@{{ .ClusterName }}
     context:		
       cluster: {{ .ClusterName }}
-      user: kubernetes-admin
-      namespace: default
-current-context: kubernetes-admin@{{ .ClusterName }}
+      user: {{ .User }}
+current-context: {{ .User }}@{{ .ClusterName }}
 preferences: {}
 users:
-  - name: kubernetes-admin
+  - name: {{ .User }}
     user:
       client-certificate-data: {{ .ClientCertData }}
       client-key-data: {{ .ClientKeyData }}
@@ -49,15 +48,17 @@ users:
 type Kubeconfig struct {
 	ClusterName    string
 	Server         string
+	User           string
 	CACertData     string
 	ClientCertData string
 	ClientKeyData  string
 }
 
-func NewKubeconfig(clusterName, server, caCertData, clientCertData, clientKeyData string) *Kubeconfig {
+func NewKubeconfig(clusterName, server, user, caCertData, clientCertData, clientKeyData string) *Kubeconfig {
 	return &Kubeconfig{
 		ClusterName:    clusterName,
 		Server:         server,
+		User:           user,
 		CACertData:     b64.StdEncoding.EncodeToString([]byte(caCertData)),
 		ClientCertData: b64.StdEncoding.EncodeToString([]byte(clientCertData)),
 		ClientKeyData:  b64.StdEncoding.EncodeToString([]byte(clientKeyData)),

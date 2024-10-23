@@ -17,11 +17,7 @@ limitations under the License.
 package k8s
 
 import (
-	"context"
 	"fmt"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,22 +25,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-type K8s struct {
-	ctx      context.Context
-	client   client.Client
-	scheme   *runtime.Scheme
-	resource metav1.Object
-}
-
-func NewK8s(ctx context.Context, client client.Client, resource metav1.Object, scheme *runtime.Scheme) *K8s {
-	return &K8s{
-		ctx:      ctx,
-		client:   client,
-		resource: resource,
-		scheme:   scheme,
-	}
-}
 
 func (k *K8s) GetSecret(namespace string, name string) (map[string][]byte, error) {
 	secret := &corev1.Secret{}

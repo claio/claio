@@ -120,6 +120,42 @@ func NewKubernetesAdminCert(namespace string, name string, ca *Certificate, adve
 	return createCert(namespace, name, cert, ca)
 }
 
+func NewKubernetesSchedulerCert(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+	cert := &x509.Certificate{
+		SerialNumber: getSerial(),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(1, 0, 0),
+		Subject:      pkix.Name{CommonName: "system:kube-scheduler"},
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	return createCert(namespace, name, cert, ca)
+}
+
+func NewKubernetesControllerCert(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+	cert := &x509.Certificate{
+		SerialNumber: getSerial(),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(1, 0, 0),
+		Subject:      pkix.Name{CommonName: "system:kube-controller-manager"},
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	return createCert(namespace, name, cert, ca)
+}
+
+func NewKubernetesKonnectivityCert(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+	cert := &x509.Certificate{
+		SerialNumber: getSerial(),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(1, 0, 0),
+		Subject:      pkix.Name{CommonName: "system:masters", Organization: []string{"system:konnectivity-server"}},
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageCodeSigning},
+	}
+	return createCert(namespace, name, cert, ca)
+}
+
 // we handle the SA RSA pub/priv key pair like a normal cert (to simply coding)
 func NewSaRSA(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)

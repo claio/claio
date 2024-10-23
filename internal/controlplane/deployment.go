@@ -1,23 +1,117 @@
-apiVersion: apps/v1
+/*
+Copyright 2024.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package controlplane
+
+import (
+	"bytes"
+	claiov1alpha1 "claio/api/v1alpha1"
+	"context"
+	"fmt"
+	"html/template"
+
+	"claio/internal/k8s"
+	"claio/internal/utils"
+
+	v1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+type ControlPlaneDeploymentFactory struct {
+	k8s          k8s.K8s
+	controlplane *claiov1alpha1.ControlPlane
+	log          *utils.Log
+}
+
+func NewControlPlaneDeploymentFactory(client client.Client, controlplane *claiov1alpha1.ControlPlane, ctx context.Context, scheme *runtime.Scheme, log *utils.Log) *ControlPlaneDeploymentFactory {
+	return &ControlPlaneDeploymentFactory{
+		k8s:          *k8s.NewK8s(ctx, client, controlplane, scheme),
+		controlplane: controlplane,
+		log:          log,
+	}
+}
+
+func (c *ControlPlaneDeploymentFactory) CreateDeployment(namespace, name string) error {
+	deploymentYaml, err := c.ToYaml()
+	if err != nil {
+		return fmt.Errorf("error generating yaml: %s", err)
+	}
+	return c.k8s.CreateDeployment(c.controlplane.Namespace, c.controlplane.Name, deploymentYaml)
+}
+
+func (c *ControlPlaneDeploymentFactory) Check(namespace string) error {
+	c.log.Info("   Check control-plane deployment ...")
+	if deployment, err := c.GetDeployment(namespace, "claio"); err == nil {
+		if deployment == nil {
+			c.log.Info("   create claio deployment")
+			if err := c.CreateDeployment(namespace, "claio"); err != nil {
+				c.log.Error(err, "failed to reconcile control-plane")
+				return err
+			}
+			return nil
+		}
+		c.log.Info("   claio deployment already exists")
+		return nil
+	} else {
+		c.log.Error(err, "failed to retreive claio deployment")
+		return err
+	}
+}
+
+func (c *ControlPlaneDeploymentFactory) GetDeployment(namespace, name string) (*v1.Deployment, error) {
+	deployment, err := c.k8s.GetDeployment(namespace, name)
+	if err != nil {
+		return nil, fmt.Errorf("error getting deployment: %s", err)
+	}
+	return deployment, nil
+}
+
+func (c *ControlPlaneDeploymentFactory) ToYaml() ([]byte, error) {
+	tmpl, err := template.New("claio").Parse(controlplaneTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing template: %s", err)
+	}
+	var buf bytes.Buffer
+	if err = tmpl.Execute(&buf, c.controlplane.Spec); err != nil {
+		return nil, fmt.Errorf("error executing template: %s", err)
+	}
+	return buf.Bytes(), nil
+}
+
+const controlplaneTemplate = `apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: claio
   labels:
-    claio: control-plane
-  namespace: tenant-dev
+    app: claio
+  namespace: tenant-{{ .Name }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      claio: control-plane
+      app: claio
   template:
     metadata:
       labels:
-        claio: control-plane
+        app: claio
     spec:
       containers:
         - name: kube-apiserver
-          image: registry.k8s.io/kube-apiserver:v1.29.1
+          image: registry.k8s.io/kube-apiserver:v{{ .Version }}
           command:
             - kube-apiserver
           args:      
@@ -26,9 +120,9 @@ spec:
             - --authorization-mode=Node,RBAC
             - --client-ca-file=/etc/kubernetes/pki/ca.crt
             - --enable-bootstrap-token-auth=true
-            - --etcd-prefix=/test
-            - --etcd-servers=http://claio-kine.claio-system.svc:2379
-            - --external-hostname=localhost
+            - --etcd-prefix=/{{ .Name }}
+            - --etcd-servers={{ .Database }}
+            - --external-hostname={{ .AdvertiseHost }}
             - --kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt
             - --kubelet-client-key=/etc/kubernetes/pki/apiserver-kubelet-client.key
             - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
@@ -39,18 +133,18 @@ spec:
             - --requestheader-extra-headers-prefix=X-Remote-Extra-
             - --requestheader-group-headers=X-Remote-Group
             - --requestheader-username-headers=X-Remote-User
-            - --secure-port=6543
+            - --secure-port={{ .Port }}
             - --service-account-issuer=https://kubernetes.default.svc.cluster.local
             - --service-account-key-file=/etc/kubernetes/pki/sa.pub
             - --service-account-signing-key-file=/etc/kubernetes/pki/sa.key
-            - --service-cluster-ip-range=192.168.128.0/17
+            - --service-cluster-ip-range={{ .ServiceCIDR }}
             - --tls-cert-file=/etc/kubernetes/pki/apiserver.crt
             - --tls-private-key-file=/etc/kubernetes/pki/apiserver.key              
           livenessProbe:
             failureThreshold: 3
             httpGet:
               path: /livez
-              port: 6543
+              port: {{ .Port }}
               scheme: HTTPS
             periodSeconds: 10
             successThreshold: 1
@@ -59,7 +153,7 @@ spec:
             failureThreshold: 3
             httpGet:
               path: /readyz
-              port: 6543
+              port: {{ .Port }}
               scheme: HTTPS
             periodSeconds: 10
             successThreshold: 1
@@ -72,7 +166,7 @@ spec:
             failureThreshold: 3
             httpGet:
               path: /livez
-              port: 6543
+              port: {{ .Port }}
               scheme: HTTPS
             periodSeconds: 10
             successThreshold: 1
@@ -82,7 +176,7 @@ spec:
             name: kubernetes-pki
             readOnly: true
         - name: kube-scheduler
-          image: registry.k8s.io/kube-scheduler:v1.29.1
+          image: registry.k8s.io/kube-scheduler:v{{ .Version }}
           command:
             - kube-scheduler
           args:
@@ -118,7 +212,7 @@ spec:
               name: kubernetes-pki
               readOnly: true
         - name: kube-controller-manager
-          image: registry.k8s.io/kube-controller-manager:v1.29.1
+          image: registry.k8s.io/kube-controller-manager:v{{ .Version }}
           command:
             - kube-controller-manager
           args:
@@ -127,7 +221,7 @@ spec:
             - --authorization-kubeconfig=/etc/kubernetes/pki/controller-manager.conf
             - --bind-address=0.0.0.0
             - --client-ca-file=/etc/kubernetes/pki/ca.crt
-            - --cluster-cidr=192.168.0.0/17
+            - --cluster-cidr={{ .ClusterCIDR }}
             - --cluster-name=dev
             - --cluster-signing-cert-file=/etc/kubernetes/pki/ca.crt
             - --cluster-signing-key-file=/etc/kubernetes/pki/ca.key
@@ -137,7 +231,7 @@ spec:
             - --requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt
             - --root-ca-file=/etc/kubernetes/pki/ca.crt
             - --service-account-private-key-file=/etc/kubernetes/pki/sa.key
-            - --service-cluster-ip-range=192.168.128.0/17
+            - --service-cluster-ip-range={{ .ServiceCIDR }}
             - --use-service-account-credentials=true
           livenessProbe:
             failureThreshold: 3
@@ -214,3 +308,4 @@ spec:
         - name: konnectivity-uds
           emptyDir:
             medium: Memory
+`

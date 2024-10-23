@@ -27,8 +27,10 @@ import (
 	claiov1alpha1 "claio/api/v1alpha1"
 
 	"claio/internal/certificates"
+	"claio/internal/controlplane"
 	"claio/internal/utils"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -42,6 +44,7 @@ type ControlPlaneReconciler struct {
 // +kubebuilder:rbac:groups=claio.github.com,resources=controlplanes/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=claio.github.com,resources=controlplanes/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="apps",resources=deployments,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -60,10 +63,18 @@ func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	res := &claiov1alpha1.ControlPlane{}
 	r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, res)
 
+	// check secrets
 	secretsFactory := certificates.NewControlPlaneSecretsFactory(r.Client, res, ctx, r.Scheme, log)
-	if err := secretsFactory.CheckSecrets(req.Namespace); err != nil {
+	if err := secretsFactory.Check(req.Namespace); err != nil {
 		log.Error(err, "failed to check secrets")
 	}
+
+	// check deployment
+	deploymentFactory := controlplane.NewControlPlaneDeploymentFactory(r.Client, res, ctx, r.Scheme, log)
+	if err := deploymentFactory.Check(req.Namespace); err != nil {
+		log.Error(err, "failed to check deployment")
+	}
+
 	log.Info("Reconciling done")
 
 	return ctrl.Result{}, nil
@@ -74,5 +85,6 @@ func (r *ControlPlaneReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&claiov1alpha1.ControlPlane{}).
 		Owns(&corev1.Secret{}).
+		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }

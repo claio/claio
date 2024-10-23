@@ -69,7 +69,8 @@ func (s *ControlPlaneSecretsFactory) GetSaRSA(namespace string) (*Certificate, e
 	return s.getCertificate(namespace, "sa", nil, nil, nil, NewSaRSA)
 }
 
-func (s *ControlPlaneSecretsFactory) CheckSecrets(namespace string) error {
+func (s *ControlPlaneSecretsFactory) Check(namespace string) error {
+	s.log.Info("   Check secrets ...")
 	ca, err := s.GetCaCert(namespace)
 	if err != nil {
 		return err
@@ -95,7 +96,22 @@ func (s *ControlPlaneSecretsFactory) CheckSecrets(namespace string) error {
 		return err
 	}
 	kubeconfig := NewKubeconfigFactoryFromSecretsFactory(s)
-	_, err = kubeconfig.GetKubeconfig(namespace)
+	_, err = kubeconfig.GetAdminKubeconfig(namespace)
+	if err != nil {
+		return err
+	}
+	kubeconfig = NewKubeconfigFactoryFromSecretsFactory(s)
+	_, err = kubeconfig.GetSchedulerKubeconfig(namespace)
+	if err != nil {
+		return err
+	}
+	kubeconfig = NewKubeconfigFactoryFromSecretsFactory(s)
+	_, err = kubeconfig.GetControllerKubeconfig(namespace)
+	if err != nil {
+		return err
+	}
+	kubeconfig = NewKubeconfigFactoryFromSecretsFactory(s)
+	_, err = kubeconfig.GetKonnectivityKubeconfig(namespace)
 	if err != nil {
 		return err
 	}

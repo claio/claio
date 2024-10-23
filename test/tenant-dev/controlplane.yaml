@@ -4,11 +4,15 @@ metadata:
   labels:
     app.kubernetes.io/name: claio
     app.kubernetes.io/managed-by: kustomize
-  name: control-plane
+  name: claio
   namespace: tenant-dev
 spec:
-  name: sample
+  name: dev
+  port: 6543
   version: 1.31.1
+  database: http://claio-kine.claio-system.svc:2379
+  cluster-cidr: 192.168.0.0/17
+  service-cidr: 192.168.128.0/17
   advertise-host: localhost
   advertise-address: 127.0.0.1
   

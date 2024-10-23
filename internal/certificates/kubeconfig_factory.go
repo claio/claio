@@ -42,13 +42,13 @@ func NewKubeconfigFactoryFromSecretsFactory(controlPlaneSecretsFactory *ControlP
 	}
 }
 
-func (k *KubeconfigFactory) GetKubeconfig(namespace string) (string, error) {
+func (k *KubeconfigFactory) GetAdminKubeconfig(namespace string) (string, error) {
 	secretData, err := k.ControlPlaneSecretsFactory.k8s.GetSecret(namespace, "kubeconfig-admin")
 	if err != nil {
 		return "", fmt.Errorf("error getting kubeconfig secret %s/kubeconfig-admin: %s", namespace, err)
 	}
 	if secretData != nil {
-		return string(secretData["admin"]), nil
+		return string(secretData["super-admin.conf"]), nil
 	}
 	k.ControlPlaneSecretsFactory.log.Info("   create kubeconfig-admin")
 	caCert, err := k.ControlPlaneSecretsFactory.GetCaCert(namespace)
@@ -57,21 +57,127 @@ func (k *KubeconfigFactory) GetKubeconfig(namespace string) (string, error) {
 	}
 	clientCert, err := NewKubernetesAdminCert(namespace, "kubeconfig-admin", caCert, nil, nil)
 	if err != nil {
-		return "", fmt.Errorf("error creating kubconfig certs in ns %s: %s", namespace, err)
+		return "", fmt.Errorf("error creating kubconfig-admin certs in ns %s: %s", namespace, err)
 	}
 	kubeconfig := NewKubeconfig(
 		namespace,
 		k.ControlPlaneSecretsFactory.res.Spec.AdvertiseHost,
+		"kubernetes-admin",
 		caCert.Cert,
 		clientCert.Cert,
 		clientCert.Key,
 	)
 	yaml, err := kubeconfig.ToYaml()
 	if err != nil {
-		return "", fmt.Errorf("error converting kubeconfig to yaml: %s", err)
+		return "", fmt.Errorf("error converting kubeconfig-admin to yaml: %s", err)
 	}
-	if err := k.ControlPlaneSecretsFactory.k8s.CreateSecret(namespace, "kubeconfig-admin", map[string][]byte{"admin.conf": []byte(yaml)}); err != nil {
-		return "", fmt.Errorf("error creating kubeconfig secret in ns %s: %s", namespace, err)
+	if err := k.ControlPlaneSecretsFactory.k8s.CreateSecret(namespace, "kubeconfig-admin", map[string][]byte{"super-admin.conf": []byte(yaml)}); err != nil {
+		return "", fmt.Errorf("error creating kubeconfig-admin secret in ns %s: %s", namespace, err)
+	}
+	return yaml, nil
+}
+
+func (k *KubeconfigFactory) GetSchedulerKubeconfig(namespace string) (string, error) {
+	secretData, err := k.ControlPlaneSecretsFactory.k8s.GetSecret(namespace, "kubeconfig-scheduler")
+	if err != nil {
+		return "", fmt.Errorf("error getting kubeconfig secret %s/kubeconfig-scheduler: %s", namespace, err)
+	}
+	if secretData != nil {
+		return string(secretData["scheduler.conf"]), nil
+	}
+	k.ControlPlaneSecretsFactory.log.Info("   create kubeconfig-scheduler")
+	caCert, err := k.ControlPlaneSecretsFactory.GetCaCert(namespace)
+	if err != nil {
+		return "", fmt.Errorf("error getting ca cert in ns %s: %s", namespace, err)
+	}
+	clientCert, err := NewKubernetesSchedulerCert(namespace, "kubeconfig-scheduler", caCert, nil, nil)
+	if err != nil {
+		return "", fmt.Errorf("error creating kubconfig-scheduler certs in ns %s: %s", namespace, err)
+	}
+	kubeconfig := NewKubeconfig(
+		"kubernetes",
+		k.ControlPlaneSecretsFactory.res.Spec.AdvertiseHost,
+		"system:kube-scheduler",
+		caCert.Cert,
+		clientCert.Cert,
+		clientCert.Key,
+	)
+	yaml, err := kubeconfig.ToYaml()
+	if err != nil {
+		return "", fmt.Errorf("error converting kubeconfig-scheduler to yaml: %s", err)
+	}
+	if err := k.ControlPlaneSecretsFactory.k8s.CreateSecret(namespace, "kubeconfig-scheduler", map[string][]byte{"scheduler.conf": []byte(yaml)}); err != nil {
+		return "", fmt.Errorf("error creating kubeconfig-scheduler secret in ns %s: %s", namespace, err)
+	}
+	return yaml, nil
+}
+
+func (k *KubeconfigFactory) GetControllerKubeconfig(namespace string) (string, error) {
+	secretData, err := k.ControlPlaneSecretsFactory.k8s.GetSecret(namespace, "kubeconfig-controller")
+	if err != nil {
+		return "", fmt.Errorf("error getting kubeconfig secret %s/kubeconfig-controller: %s", namespace, err)
+	}
+	if secretData != nil {
+		return string(secretData["controller-manager.conf"]), nil
+	}
+	k.ControlPlaneSecretsFactory.log.Info("   create kubeconfig-controller")
+	caCert, err := k.ControlPlaneSecretsFactory.GetCaCert(namespace)
+	if err != nil {
+		return "", fmt.Errorf("error getting ca cert in ns %s: %s", namespace, err)
+	}
+	clientCert, err := NewKubernetesControllerCert(namespace, "kubeconfig-controller", caCert, nil, nil)
+	if err != nil {
+		return "", fmt.Errorf("error creating kubconfig-controller certs in ns %s: %s", namespace, err)
+	}
+	kubeconfig := NewKubeconfig(
+		"kubernetes",
+		k.ControlPlaneSecretsFactory.res.Spec.AdvertiseHost,
+		"system:kube-controller-manager",
+		caCert.Cert,
+		clientCert.Cert,
+		clientCert.Key,
+	)
+	yaml, err := kubeconfig.ToYaml()
+	if err != nil {
+		return "", fmt.Errorf("error converting kubeconfig-controller to yaml: %s", err)
+	}
+	if err := k.ControlPlaneSecretsFactory.k8s.CreateSecret(namespace, "kubeconfig-controller", map[string][]byte{"controller-manager.conf": []byte(yaml)}); err != nil {
+		return "", fmt.Errorf("error creating kubeconfig-controller secret in ns %s: %s", namespace, err)
+	}
+	return yaml, nil
+}
+
+func (k *KubeconfigFactory) GetKonnectivityKubeconfig(namespace string) (string, error) {
+	secretData, err := k.ControlPlaneSecretsFactory.k8s.GetSecret(namespace, "kubeconfig-konnectivity")
+	if err != nil {
+		return "", fmt.Errorf("error getting kubeconfig secret %s/kubeconfig-konnectivity: %s", namespace, err)
+	}
+	if secretData != nil {
+		return string(secretData["konnectivity-server.conf"]), nil
+	}
+	k.ControlPlaneSecretsFactory.log.Info("   create kubeconfig-konnectivity")
+	caCert, err := k.ControlPlaneSecretsFactory.GetCaCert(namespace)
+	if err != nil {
+		return "", fmt.Errorf("error getting ca cert in ns %s: %s", namespace, err)
+	}
+	clientCert, err := NewKubernetesControllerCert(namespace, "kubeconfig-konnectivity", caCert, nil, nil)
+	if err != nil {
+		return "", fmt.Errorf("error creating kubconfig-konnectivity certs in ns %s: %s", namespace, err)
+	}
+	kubeconfig := NewKubeconfig(
+		"kubernetes",
+		k.ControlPlaneSecretsFactory.res.Spec.AdvertiseHost,
+		"system:konnectivity-server",
+		caCert.Cert,
+		clientCert.Cert,
+		clientCert.Key,
+	)
+	yaml, err := kubeconfig.ToYaml()
+	if err != nil {
+		return "", fmt.Errorf("error converting kubeconfig-konnectivity to yaml: %s", err)
+	}
+	if err := k.ControlPlaneSecretsFactory.k8s.CreateSecret(namespace, "kubeconfig-konnectivity", map[string][]byte{"konnectivity-server.conf": []byte(yaml)}); err != nil {
+		return "", fmt.Errorf("error creating kubeconfig-konnectivity secret in ns %s: %s", namespace, err)
 	}
 	return yaml, nil
 }

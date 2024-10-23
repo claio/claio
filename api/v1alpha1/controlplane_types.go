@@ -30,7 +30,11 @@ type ControlPlaneSpec struct {
 
 	// Foo is an example field of ControlPlane. Edit controlplane_types.go to remove/update
 	Name             string `json:"name"`
+	Port             int    `json:"port"`
 	Version          string `json:"version"`
+	Database         string `json:"database"`
+	ClusterCIDR      string `json:"cluster-cidr"`
+	ServiceCIDR      string `json:"service-cidr"`
 	AdvertiseAddress string `json:"advertise-address"`
 	AdvertiseHost    string `json:"advertise-host"`
 }
