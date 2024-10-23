@@ -61,7 +61,9 @@ func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// fetch the ControlPlane instance
 	res := &claiov1alpha1.ControlPlane{}
-	r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, res)
+	if err := r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, res); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
 
 	// check secrets
 	secretsFactory := certificates.NewControlPlaneSecretsFactory(r.Client, res, ctx, r.Scheme, log)
