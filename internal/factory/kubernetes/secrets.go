@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package k8s
+package kubernetes
 
 import (
 	"fmt"
@@ -23,14 +23,14 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (k *K8s) GetSecret(namespace string, name string) (map[string][]byte, error) {
+func (k *KubernetesClient) GetSecret(namespace, name string) (map[string][]byte, error) {
 	secret := &corev1.Secret{}
-	if err := k.client.Get(
-		k.ctx,
-		k8sclient.ObjectKey{
+	if err := k.Client.Get(
+		k.Ctx,
+		client.ObjectKey{
 			Namespace: namespace,
 			Name:      name,
 		},
@@ -44,7 +44,7 @@ func (k *K8s) GetSecret(namespace string, name string) (map[string][]byte, error
 	return secret.Data, nil
 }
 
-func (k *K8s) CreateSecret(namespace string, name string, data map[string][]byte) error {
+func (k *KubernetesClient) CreateSecret(namespace, name string, data map[string][]byte) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -52,11 +52,27 @@ func (k *K8s) CreateSecret(namespace string, name string, data map[string][]byte
 		},
 		Data: data,
 	}
-	if err := ctrl.SetControllerReference(k.resource, secret, k.scheme); err != nil {
+	if err := ctrl.SetControllerReference(k.Resource, secret, &k.Scheme); err != nil {
 		return fmt.Errorf("   cannot set owner-reference on secret %s/%s: %s", namespace, name, err)
 	}
-	if err := k.client.Create(k.ctx, secret); err != nil {
+	if err := k.Client.Create(k.Ctx, secret); err != nil {
 		return fmt.Errorf("  failed to create secret %s/%s: %s", namespace, name, err)
+	}
+	return nil
+}
+
+func (k *KubernetesClient) DeleteSecret(namespace, name string) error {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	if err := k.Client.Delete(k.Ctx, secret); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("  failed to delete secret %s/%s: %s", namespace, name, err)
 	}
 	return nil
 }

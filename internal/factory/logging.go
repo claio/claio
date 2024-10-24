@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package utils
+package factory
 
 import (
 	"fmt"
@@ -23,17 +23,17 @@ import (
 )
 
 type Log struct {
+	scope     string
 	namespace string
 	name      string
-	source    string
 }
 
-func NewLog(source string, namespace string, name string) *Log {
-	l := new(Log)
-	l.namespace = namespace
-	l.name = name
-	l.source = source
-	return l
+func NewLog(scope, namespace, name string) *Log {
+	return &Log{
+		scope:     scope,
+		namespace: namespace,
+		name:      name,
+	}
 }
 
 func (l *Log) sprintf(template string, args ...any) string {
@@ -42,9 +42,9 @@ func (l *Log) sprintf(template string, args ...any) string {
 }
 
 func (l *Log) Info(template string, args ...any) {
-	log.Log.WithName(l.source).Info(l.sprintf(template, args...))
+	log.Log.WithName(l.scope).Info(l.sprintf(template, args...))
 }
 
 func (l *Log) Error(err error, template string, args ...any) {
-	log.Log.WithName(l.source).Error(err, l.sprintf(template, args...))
+	log.Log.WithName(l.scope).Error(err, l.sprintf(template, args...))
 }

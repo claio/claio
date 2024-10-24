@@ -14,28 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package k8s
+package kubernetes
 
 import (
 	"context"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type K8s struct {
-	ctx      context.Context
-	client   k8sclient.Client
-	scheme   *runtime.Scheme
-	resource metav1.Object
+type KubernetesClient struct {
+	Ctx      context.Context
+	Client   client.Client
+	Scheme   runtime.Scheme
+	Resource metav1.Object
 }
 
-func NewK8s(ctx context.Context, client k8sclient.Client, resource metav1.Object, scheme *runtime.Scheme) *K8s {
-	return &K8s{
-		ctx:      ctx,
-		client:   client,
-		resource: resource,
-		scheme:   scheme,
+func NewKubernetesClient(ctx context.Context, rClient client.Client, rScheme runtime.Scheme, resource metav1.Object) *KubernetesClient {
+	return &KubernetesClient{
+		Ctx:      ctx,
+		Client:   rClient,
+		Scheme:   rScheme,
+		Resource: resource,
 	}
 }

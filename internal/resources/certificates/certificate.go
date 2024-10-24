@@ -24,17 +24,41 @@ import (
 )
 
 type Certificate struct {
-	Name      string
-	Namespace string
-	Key       string
-	Cert      string
-	Pub       string
+	Key  string
+	Pub  string
+	Cert string
 }
 
-func (c *Certificate) GetCert() (*x509.Certificate, error) {
-	if c.Cert == "" {
-		return nil, fmt.Errorf("no certificate set")
+func NewCertificate(namespace, name, key, cert, pub string) *Certificate {
+	return &Certificate{
+		Key:  key,
+		Pub:  pub,
+		Cert: cert,
 	}
+}
+
+func NewCertificateFromSecretData(name string, data map[string][]byte) (*Certificate, error) {
+	cert := Certificate{}
+	if val, ok := data[name+".key"]; ok {
+		cert.Key = string(val)
+	} else {
+		return nil, fmt.Errorf("missing key for certificate %s", name)
+	}
+	if val, ok := data[name+".pub"]; ok {
+		cert.Pub = string(val)
+	} else {
+		return nil, fmt.Errorf("missing pub for certificate %s", name)
+	}
+	if val, ok := data[name+".crt"]; ok {
+		cert.Cert = string(val)
+	} else {
+		return nil, fmt.Errorf("missing crt for certificate %s", name)
+	}
+
+	return &cert, nil
+}
+
+func (c *Certificate) RawCert() (*x509.Certificate, error) {
 	block, _ := pem.Decode([]byte(c.Cert))
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode certificate from PEM")
@@ -46,7 +70,7 @@ func (c *Certificate) GetCert() (*x509.Certificate, error) {
 	return cert, nil
 }
 
-func (c *Certificate) GetKey() (*rsa.PrivateKey, error) {
+func (c *Certificate) RawKey() (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode([]byte(c.Key))
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode key from PEM")
@@ -58,10 +82,7 @@ func (c *Certificate) GetKey() (*rsa.PrivateKey, error) {
 	return cert, nil
 }
 
-func (c *Certificate) GetPub() (*rsa.PublicKey, error) {
-	if c.Pub == "" {
-		return nil, fmt.Errorf("no public-key set")
-	}
+func (c *Certificate) RawPub() (*rsa.PublicKey, error) {
 	block, _ := pem.Decode([]byte(c.Pub))
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode public-key from PEM")
@@ -71,4 +92,8 @@ func (c *Certificate) GetPub() (*rsa.PublicKey, error) {
 		return nil, fmt.Errorf("failed to parse public-key: %s", err)
 	}
 	return pub, nil
+}
+
+func (c *Certificate) IsValid() bool {
+	return true
 }

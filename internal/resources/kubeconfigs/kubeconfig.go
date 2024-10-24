@@ -14,14 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package certificates
+package kubeconfigs
 
 import (
-	"bytes"
 	b64 "encoding/base64"
-	"fmt"
-	"text/template"
 )
+
+type Kubeconfig struct {
+	ClusterName    string
+	Server         string
+	User           string
+	CACertData     string
+	ClientCertData string
+	ClientKeyData  string
+}
+
+func NewKubeconfig(clusterName, server, user, caCertData, clientCertData, clientKeyData string) *Kubeconfig {
+	return &Kubeconfig{
+		ClusterName:    clusterName,
+		Server:         server,
+		User:           user,
+		CACertData:     b64.StdEncoding.EncodeToString([]byte(caCertData)),
+		ClientCertData: b64.StdEncoding.EncodeToString([]byte(clientCertData)),
+		ClientKeyData:  b64.StdEncoding.EncodeToString([]byte(clientKeyData)),
+	}
+}
 
 const kubeconfigTemplate = `
 apiVersion: v1
@@ -44,35 +61,3 @@ users:
       client-certificate-data: {{ .ClientCertData }}
       client-key-data: {{ .ClientKeyData }}
 `
-
-type Kubeconfig struct {
-	ClusterName    string
-	Server         string
-	User           string
-	CACertData     string
-	ClientCertData string
-	ClientKeyData  string
-}
-
-func NewKubeconfig(clusterName, server, user, caCertData, clientCertData, clientKeyData string) *Kubeconfig {
-	return &Kubeconfig{
-		ClusterName:    clusterName,
-		Server:         server,
-		User:           user,
-		CACertData:     b64.StdEncoding.EncodeToString([]byte(caCertData)),
-		ClientCertData: b64.StdEncoding.EncodeToString([]byte(clientCertData)),
-		ClientKeyData:  b64.StdEncoding.EncodeToString([]byte(clientKeyData)),
-	}
-}
-
-func (k *Kubeconfig) ToYaml() (string, error) {
-	tmpl, err := template.New("kubeconfig-admin").Parse(kubeconfigTemplate)
-	if err != nil {
-		return "", fmt.Errorf("error parsing template: %s", err)
-	}
-	var buf bytes.Buffer
-	if err = tmpl.Execute(&buf, k); err != nil {
-		return "", fmt.Errorf("error executing template: %s", err)
-	}
-	return buf.String(), nil
-}

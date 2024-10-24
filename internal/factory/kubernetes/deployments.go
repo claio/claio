@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package k8s
+package kubernetes
 
 import (
 	"fmt"
@@ -23,16 +23,15 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (k *K8s) GetDeployment(namespace, name string) (*appsv1.Deployment, error) {
+func (k *KubernetesClient) GetDeployment(namespace, name string) (*appsv1.Deployment, error) {
 	deployment := &appsv1.Deployment{}
-	if err := k.client.Get(
-		k.ctx,
-		k8sclient.ObjectKey{
+	if err := k.Client.Get(
+		k.Ctx,
+		client.ObjectKey{
 			Namespace: namespace,
 			Name:      name,
 		},
@@ -46,16 +45,16 @@ func (k *K8s) GetDeployment(namespace, name string) (*appsv1.Deployment, error) 
 	return deployment, nil
 }
 
-func (k *K8s) CreateDeployment(namespace, name string, yaml []byte) error {
-	decoder := serializer.NewCodecFactory(scheme.Scheme).UniversalDecoder()
+func (k *KubernetesClient) CreateDeployment(namespace, name string, yaml []byte) error {
+	decoder := serializer.NewCodecFactory(&k.Scheme).UniversalDecoder()
 	deployment := &appsv1.Deployment{}
 	if err := runtime.DecodeInto(decoder, yaml, deployment); err != nil {
 		return fmt.Errorf("   cannot decode deployment %s/%s: %s", namespace, name, err)
 	}
-	if err := ctrl.SetControllerReference(k.resource, deployment, k.scheme); err != nil {
+	if err := ctrl.SetControllerReference(k.Resource, deployment, &k.Scheme); err != nil {
 		return fmt.Errorf("   cannot set owner-reference on deployment %s/%s: %s", namespace, name, err)
 	}
-	if err := k.client.Create(k.ctx, deployment); err != nil {
+	if err := k.Client.Create(k.Ctx, deployment); err != nil {
 		return fmt.Errorf("  failed to create deployment %s/%s: %s", namespace, name, err)
 	}
 	return nil

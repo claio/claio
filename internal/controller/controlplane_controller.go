@@ -26,9 +26,10 @@ import (
 
 	claiov1alpha1 "claio/api/v1alpha1"
 
-	"claio/internal/certificates"
-	"claio/internal/controlplane"
-	"claio/internal/utils"
+	"claio/internal/factory"
+	"claio/internal/resources/certificates"
+	"claio/internal/resources/deployments"
+	"claio/internal/resources/kubeconfigs"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -56,7 +57,7 @@ type ControlPlaneReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.18.2/pkg/reconcile
 func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := utils.NewLog("ControlPlane", req.Namespace, req.Name)
+	log := factory.NewLog("ControlPlane", req.Namespace, req.Name)
 	log.Info("--- Reconciling --------------------------------------")
 
 	// fetch the ControlPlane instance
@@ -65,15 +66,21 @@ func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	factory := factory.NewControlPlaneFactory(ctx, req, r.Client, r.Scheme, res)
+
 	// check secrets
-	secretsFactory := certificates.NewControlPlaneSecretsFactory(r.Client, res, ctx, r.Scheme, log)
-	if err := secretsFactory.Check(req.Namespace); err != nil {
+	certicateFactory := certificates.NewCertificateFactory(factory)
+	if err := certicateFactory.Check(); err != nil {
 		log.Error(err, "failed to check secrets")
+	}
+	kubeconfigFactory := kubeconfigs.NewKubeconfigFactory(factory)
+	if err := kubeconfigFactory.Check(); err != nil {
+		log.Error(err, "failed to check kubeconfigs")
 	}
 
 	// check deployment
-	deploymentFactory := controlplane.NewControlPlaneDeploymentFactory(r.Client, res, ctx, r.Scheme, log)
-	if err := deploymentFactory.Check(req.Namespace); err != nil {
+	deploymentFactory := deployments.NewControlPlaneDeploymentFactory(factory)
+	if err := deploymentFactory.Check(); err != nil {
 		log.Error(err, "failed to check deployment")
 	}
 

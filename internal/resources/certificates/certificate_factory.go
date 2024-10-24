@@ -17,21 +17,26 @@ limitations under the License.
 package certificates
 
 import (
-	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
+	"claio/internal/factory"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/pem"
 	"fmt"
 	"math/big"
 	"net"
 	"time"
 )
 
-type CertificateCreator func(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error)
+type CertificateFactory struct {
+	Factory *factory.ControlPlaneFactory
+}
 
-func NewCaCert(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+func NewCertificateFactory(factory *factory.ControlPlaneFactory) *CertificateFactory {
+	return &CertificateFactory{
+		Factory: factory,
+	}
+}
+
+func NewCaCert(ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
 	cert := &x509.Certificate{
 		SerialNumber:          big.NewInt(0),
 		NotBefore:             time.Now(),
@@ -42,10 +47,10 @@ func NewCaCert(namespace string, name string, ca *Certificate, advertisedName *s
 		BasicConstraintsValid: true,
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageCertSign,
 	}
-	return createCert(namespace, name, cert, nil)
+	return createCert(cert, nil)
 }
 
-func NewApiserverCert(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+func NewApiserverCert(ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
 	ip := net.ParseIP(*advertisedIp)
 	if ip == nil {
 		return nil, fmt.Errorf("invalid IP address: %s", *advertisedIp)
@@ -67,10 +72,10 @@ func NewApiserverCert(namespace string, name string, ca *Certificate, advertised
 			*advertisedName},
 	}
 
-	return createCert(namespace, name, cert, ca)
+	return createCert(cert, ca)
 }
 
-func NewFrontProxyCaCert(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+func NewFrontProxyCaCert(ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
 	cert := &x509.Certificate{
 		SerialNumber:          big.NewInt(0),
 		NotBefore:             time.Now(),
@@ -81,10 +86,10 @@ func NewFrontProxyCaCert(namespace string, name string, ca *Certificate, adverti
 		BasicConstraintsValid: true,
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageCertSign,
 	}
-	return createCert(namespace, name, cert, nil)
+	return createCert(cert, nil)
 }
 
-func NewFrontProxyClientCert(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+func NewFrontProxyClientCert(ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
 	cert := &x509.Certificate{
 		SerialNumber: getSerial(),
 		NotBefore:    time.Now(),
@@ -93,10 +98,10 @@ func NewFrontProxyClientCert(namespace string, name string, ca *Certificate, adv
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 	}
-	return createCert(namespace, name, cert, ca)
+	return createCert(cert, ca)
 }
 
-func NewApiserverKubeletClientCert(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+func NewApiserverKubeletClientCert(ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
 	cert := &x509.Certificate{
 		SerialNumber: getSerial(),
 		NotBefore:    time.Now(),
@@ -105,10 +110,10 @@ func NewApiserverKubeletClientCert(namespace string, name string, ca *Certificat
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
-	return createCert(namespace, name, cert, ca)
+	return createCert(cert, ca)
 }
 
-func NewKubernetesAdminCert(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+func NewKubernetesAdminCert(ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
 	cert := &x509.Certificate{
 		SerialNumber: getSerial(),
 		NotBefore:    time.Now(),
@@ -117,10 +122,10 @@ func NewKubernetesAdminCert(namespace string, name string, ca *Certificate, adve
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
-	return createCert(namespace, name, cert, ca)
+	return createCert(cert, ca)
 }
 
-func NewKubernetesSchedulerCert(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+func NewKubernetesSchedulerCert(ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
 	cert := &x509.Certificate{
 		SerialNumber: getSerial(),
 		NotBefore:    time.Now(),
@@ -129,10 +134,10 @@ func NewKubernetesSchedulerCert(namespace string, name string, ca *Certificate, 
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
-	return createCert(namespace, name, cert, ca)
+	return createCert(cert, ca)
 }
 
-func NewKubernetesControllerCert(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+func NewKubernetesControllerCert(ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
 	cert := &x509.Certificate{
 		SerialNumber: getSerial(),
 		NotBefore:    time.Now(),
@@ -141,10 +146,10 @@ func NewKubernetesControllerCert(namespace string, name string, ca *Certificate,
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
-	return createCert(namespace, name, cert, ca)
+	return createCert(cert, ca)
 }
 
-func NewKubernetesKonnectivityCert(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+func NewKubernetesKonnectivityCert(ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
 	cert := &x509.Certificate{
 		SerialNumber: getSerial(),
 		NotBefore:    time.Now(),
@@ -153,92 +158,17 @@ func NewKubernetesKonnectivityCert(namespace string, name string, ca *Certificat
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageCodeSigning},
 	}
-	return createCert(namespace, name, cert, ca)
+	return createCert(cert, ca)
 }
 
-// we handle the SA RSA pub/priv key pair like a normal cert (to simply coding)
-func NewSaRSA(namespace string, name string, ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate private key: %s", err)
+func NewSaCert(ca *Certificate, advertisedName *string, advertisedIp *string) (*Certificate, error) {
+	cert := &x509.Certificate{
+		SerialNumber: getSerial(),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(1, 0, 0),
+		Subject:      pkix.Name{CommonName: "SA"},
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 	}
-	privKeyPEM := new(bytes.Buffer)
-	pem.Encode(privKeyPEM, &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
-	})
-	der, err := x509.MarshalPKIXPublicKey(privateKey.Public())
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal public key: %s", err)
-	}
-	publicKeyPEM := new(bytes.Buffer)
-	pem.Encode(publicKeyPEM, &pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: der,
-	})
-	return &Certificate{
-		Name:      name,
-		Namespace: namespace,
-		Pub:       publicKeyPEM.String(),
-		Key:       privKeyPEM.String(),
-		Cert:      "",
-	}, nil
-
-}
-
-// --- helpers -----------------------------------------------------------
-func getSerial() *big.Int {
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 62)
-	serial, err := rand.Int(rand.Reader, serialNumberLimit)
-	if err != nil {
-		return big.NewInt(1)
-	}
-	return serial
-}
-
-// --- helpers ------------------------------------------------
-func createCert(namespace string, name string, cert *x509.Certificate, ca *Certificate) (*Certificate, error) {
-	// create private key
-	certPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate private key: %s", err)
-	}
-
-	// create certificate
-	caCert := cert
-	caKey := certPrivateKey
-	if ca != nil {
-		caCert, err = ca.GetCert()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get ca certificate: %s", err)
-		}
-		caKey, err = ca.GetKey()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get ca private key: %s", err)
-		}
-	}
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, caCert, &certPrivateKey.PublicKey, caKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create certificate: %s", err)
-	}
-
-	certPEM := new(bytes.Buffer)
-	pem.Encode(certPEM, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: certBytes,
-	})
-
-	certPrivKeyPEM := new(bytes.Buffer)
-	pem.Encode(certPrivKeyPEM, &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(certPrivateKey),
-	})
-
-	return &Certificate{
-		Name:      name,
-		Namespace: namespace,
-		Cert:      certPEM.String(),
-		Key:       certPrivKeyPEM.String(),
-		Pub:       "",
-	}, nil
+	return createCert(cert, ca)
 }

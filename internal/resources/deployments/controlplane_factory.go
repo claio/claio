@@ -14,82 +14,39 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controlplane
+package deployments
 
 import (
-	"bytes"
-	claiov1alpha1 "claio/api/v1alpha1"
-	"context"
+	"claio/internal/factory"
 	"fmt"
-	"html/template"
-
-	"claio/internal/k8s"
-	"claio/internal/utils"
 
 	v1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type ControlPlaneDeploymentFactory struct {
-	k8s          k8s.K8s
-	controlplane *claiov1alpha1.ControlPlane
-	log          *utils.Log
+	Factory *factory.ControlPlaneFactory
 }
 
-func NewControlPlaneDeploymentFactory(client client.Client, controlplane *claiov1alpha1.ControlPlane, ctx context.Context, scheme *runtime.Scheme, log *utils.Log) *ControlPlaneDeploymentFactory {
+func NewControlPlaneDeploymentFactory(factory *factory.ControlPlaneFactory) *ControlPlaneDeploymentFactory {
 	return &ControlPlaneDeploymentFactory{
-		k8s:          *k8s.NewK8s(ctx, client, controlplane, scheme),
-		controlplane: controlplane,
-		log:          log,
+		Factory: factory,
 	}
 }
 
 func (c *ControlPlaneDeploymentFactory) CreateDeployment(namespace, name string) error {
-	deploymentYaml, err := c.ToYaml()
+	deploymentYaml, err := c.Factory.Base.ToYaml(controlplaneTemplate, c.Factory.Spec)
 	if err != nil {
 		return fmt.Errorf("error generating yaml: %s", err)
 	}
-	return c.k8s.CreateDeployment(c.controlplane.Namespace, c.controlplane.Name, deploymentYaml)
-}
-
-func (c *ControlPlaneDeploymentFactory) Check(namespace string) error {
-	c.log.Info("   Check control-plane deployment ...")
-	if deployment, err := c.GetDeployment(namespace, "claio"); err == nil {
-		if deployment == nil {
-			c.log.Info("   create claio deployment")
-			if err := c.CreateDeployment(namespace, "claio"); err != nil {
-				c.log.Error(err, "failed to reconcile control-plane")
-				return err
-			}
-			return nil
-		}
-		c.log.Info("   claio deployment already exists")
-		return nil
-	} else {
-		c.log.Error(err, "failed to retreive claio deployment")
-		return err
-	}
+	return c.Factory.KubernetesClient.CreateDeployment(c.Factory.Namespace, c.Factory.Name, deploymentYaml)
 }
 
 func (c *ControlPlaneDeploymentFactory) GetDeployment(namespace, name string) (*v1.Deployment, error) {
-	deployment, err := c.k8s.GetDeployment(namespace, name)
+	deployment, err := c.Factory.KubernetesClient.GetDeployment(namespace, name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting deployment: %s", err)
 	}
 	return deployment, nil
-}
-
-func (c *ControlPlaneDeploymentFactory) ToYaml() ([]byte, error) {
-	tmpl, err := template.New("claio").Parse(controlplaneTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing template: %s", err)
-	}
-	var buf bytes.Buffer
-	if err = tmpl.Execute(&buf, c.controlplane.Spec); err != nil {
-		return nil, fmt.Errorf("error executing template: %s", err)
-	}
-	return buf.Bytes(), nil
 }
 
 const controlplaneTemplate = `apiVersion: apps/v1
