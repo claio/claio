@@ -37,7 +37,7 @@ func (k *KubeconfigFactory) getKubeconfig(secretName, secretKey, clusterName, us
 	factory := k.Factory
 	namespace := factory.Namespace
 	kubernetesClient := factory.KubernetesClient
-	log := factory.Base.Logger(2)
+	log := factory.Base.Logger(1)
 
 	secretData, err := kubernetesClient.GetSecret(namespace, secretName)
 	if err != nil {
@@ -47,12 +47,12 @@ func (k *KubeconfigFactory) getKubeconfig(secretName, secretKey, clusterName, us
 		if !forceCreate {
 			return secretData[secretKey], false, nil
 		}
-		log.Info("   delete old/invalid secret: %s", secretName)
+		log.Info("delete old/invalid secret: %s", secretName)
 		if err := kubernetesClient.DeleteSecret(namespace, secretName); err != nil {
 			return nil, true, fmt.Errorf("  failed to delete invalid secret %s: %s", secretName, err)
 		}
 	}
-	log.Info("   create %s", secretName)
+	log.Info("create %s", secretName)
 	certificateFactory := certificates.NewCertificateFactory(factory)
 	ca, err := certificateFactory.GetCertificateSecret("ca")
 	if err != nil {

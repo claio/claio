@@ -17,13 +17,14 @@ limitations under the License.
 package deployments
 
 import (
+	"fmt"
 	"reflect"
 	"time"
 )
 
 func (c *ControlPlaneDeploymentFactory) Check(apiDirty bool) error {
 	log := c.Factory.Base.Logger(1)
-	log.Info("   check control-plane deployment ...")
+	log.Header("check control-plane deployment ...")
 	deployment, err := c.GetDeployment(c.Factory.Namespace, "claio")
 	if err != nil {
 		log.Error(err, "failed to retreive claio deployment")
@@ -31,41 +32,44 @@ func (c *ControlPlaneDeploymentFactory) Check(apiDirty bool) error {
 	}
 	// deployment does not exist - create it
 	if deployment == nil {
-		log.Info("      create claio deployment")
+		log.Info("create claio deployment")
 		if err := c.CreateDeployment(c.Factory.Namespace, "claio"); err != nil {
-			log.Error(err, "      failed to create deployment")
+			log.Error(err, "failed to create deployment")
 			return err
 		}
 		return nil
 	}
 
-	// recreate deployment
-	if apiDirty || c.Factory.Spec.Database != c.Factory.Status.TargetSpec.Database {
-		log.Info("      structural change - need to stop control-plane")
+	if apiDirty || !c.isEqual() {
+		log.Info("structural changes detected - need to stop control-plane")
+		//TODO: make this non-blocking
 		if err := c.DeleteDeployment(c.Factory.Namespace, "claio"); err != nil {
-			log.Error(err, "       failed to delete deployment")
+			log.Error(err, "failed to delete deployment")
 			return err
 		}
-		log.Info("      deployment stopped")
-		if c.Factory.Spec.Database != c.Factory.Status.TargetSpec.Database {
-			log.Info("      migrating database ... (fake) ... (sleep 10)")
-			time.Sleep(10 * time.Second)
-			log.Info("      database migration done")
+		loop := 0
+		for {
+			if loop > 10 {
+				return fmt.Errorf("failed to stop deployment")
+			}
+			depl, err := c.GetDeployment(c.Factory.Namespace, "claio")
+			if err == nil && depl == nil {
+				break
+			}
+			time.Sleep(3 * time.Second)
+			loop++
 		}
+		log.Info("deployment stopped")
+
+		if c.Factory.Spec.Database != c.Factory.Status.TargetSpec.Database {
+			log.Info("migrating database ... (fake) ... (sleep 10)")
+			time.Sleep(10 * time.Second)
+			log.Info("database migration done")
+		}
+
 		// the deployment will be startet with the next reconcilation run
 		return nil
 	}
-
-	// update deployment
-	if !c.isEqual() {
-		log.Info("      update claio deployment")
-		if err := c.UpdateDeployment(c.Factory.Namespace, "claio"); err != nil {
-			log.Error(err, "       failed to update deployment")
-			return err
-		}
-		return nil
-	}
-
 	return nil
 }
 

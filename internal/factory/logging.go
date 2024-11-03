@@ -45,10 +45,14 @@ func (l *Log) sprintf(template string, args ...any) string {
 	return fmt.Sprintf("[%s/%s]   %s%s", l.namespace, l.name, spaces, msg)
 }
 
-func (l *Log) Info(template string, args ...any) {
+func (l *Log) Header(template string, args ...any) {
 	log.Log.WithName(l.scope).Info(l.sprintf(template, args...))
 }
 
+func (l *Log) Info(template string, args ...any) {
+	log.Log.WithName(l.scope).Info(l.sprintf("   "+template, args...))
+}
+
 func (l *Log) Error(err error, template string, args ...any) {
-	log.Log.WithName(l.scope).Error(err, l.sprintf(template, args...))
+	log.Log.WithName(l.scope).Error(err, l.sprintf("   "+template, args...))
 }

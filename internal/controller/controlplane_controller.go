@@ -69,7 +69,7 @@ func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	factory := factory.NewControlPlaneFactory(ctx, req, r.Client, r.Scheme, res)
 	log := factory.Base.Logger(0)
-	log.Info("--- Reconciling --------------------------------------")
+	log.Header("--- Reconciling --------------------------------------")
 
 	// check secrets
 	certicateFactory := certificates.NewCertificateFactory(factory)
@@ -96,7 +96,7 @@ func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		log.Error(err, "failed to update status")
 		return ctrl.Result{}, err
 	}
-	log.Info("Reconciling done")
+	log.Header("--- Reconciling done")
 	return ctrl.Result{}, nil
 }
 

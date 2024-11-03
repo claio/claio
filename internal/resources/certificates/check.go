@@ -22,7 +22,7 @@ import (
 
 func (s *CertificateFactory) Check() (bool, bool, error) {
 	log := s.Factory.Base.Logger(1)
-	log.Info("   check secrets ...")
+	log.Header("check secrets ...")
 	// ca
 	_, caChanged, err := s.GetCa(false)
 	if err != nil {

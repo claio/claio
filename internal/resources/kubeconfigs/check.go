@@ -20,7 +20,7 @@ import "fmt"
 
 func (k *KubeconfigFactory) Check(caChanged bool) error {
 	log := k.Factory.Base.Logger(1)
-	log.Info("   check kubeconfigs ...")
+	log.Header("check kubeconfigs ...")
 	// kubeconfig-admin
 	_, _, err := k.GetAdminKubeconfig(caChanged)
 	if err != nil {
