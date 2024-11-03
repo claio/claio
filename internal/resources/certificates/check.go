@@ -19,7 +19,7 @@ package certificates
 import "fmt"
 
 func (s *CertificateFactory) Check() error {
-	log := s.Factory.Log
+	log := s.Factory.Base.Logger(1)
 	log.Info("   check secrets ...")
 	// ca
 	_, caChanged, err := s.GetCa(false)
@@ -51,13 +51,6 @@ func (s *CertificateFactory) Check() error {
 	if err != nil {
 		return fmt.Errorf("failed to get sa")
 	}
-	// kubeconfig-admin
-	/*
-		_, _, err = s.GetKubeconfigAdmin(false)
-		if err != nil {
-			return fmt.Errorf("failed to get kubeconfig-admin")
-		}
-	*/
 
 	return nil
 }

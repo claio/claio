@@ -29,6 +29,7 @@ import (
 type ControlPlaneFactory struct {
 	Base             *Factory
 	Spec             *claiov1alpha1.ControlPlaneSpec
+	Status           *claiov1alpha1.ControlPlaneStatus
 	Namespace        string
 	Name             string
 	KubernetesClient *kubernetes.KubernetesClient
@@ -41,10 +42,10 @@ func NewControlPlaneFactory(ctx context.Context, req ctrl.Request, rClient clien
 	f := &ControlPlaneFactory{
 		Base:             factory,
 		Spec:             &res.Spec,
+		Status:           &res.Status,
 		Namespace:        factory.Namespace(),
 		Name:             factory.Name(),
 		KubernetesClient: factory.KubernetesClient,
-		Log:              factory.Log,
 	}
 	return f
 }

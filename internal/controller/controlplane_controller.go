@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	claiov1alpha1 "claio/api/v1alpha1"
 
@@ -57,9 +58,6 @@ type ControlPlaneReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.18.2/pkg/reconcile
 func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := factory.NewLog("ControlPlane", req.Namespace, req.Name)
-	log.Info("--- Reconciling --------------------------------------")
-
 	// fetch the ControlPlane instance
 	res := &claiov1alpha1.ControlPlane{}
 	if err := r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, res); err != nil {
@@ -67,25 +65,35 @@ func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	factory := factory.NewControlPlaneFactory(ctx, req, r.Client, r.Scheme, res)
+	log := factory.Base.Logger(0)
+	log.Info("--- Reconciling --------------------------------------")
 
 	// check secrets
 	certicateFactory := certificates.NewCertificateFactory(factory)
 	if err := certicateFactory.Check(); err != nil {
 		log.Error(err, "failed to check secrets")
+		return ctrl.Result{}, err
 	}
 	kubeconfigFactory := kubeconfigs.NewKubeconfigFactory(factory)
 	if err := kubeconfigFactory.Check(); err != nil {
 		log.Error(err, "failed to check kubeconfigs")
+		return ctrl.Result{}, err
 	}
 
 	// check deployment
 	deploymentFactory := deployments.NewControlPlaneDeploymentFactory(factory)
 	if err := deploymentFactory.Check(); err != nil {
 		log.Error(err, "failed to check deployment")
+		return ctrl.Result{}, err
 	}
 
+	// at this point target state == current state
+	res.Status = claiov1alpha1.ControlPlaneStatus{TargetSpec: res.Spec}
+	if err := r.Status().Update(context.Background(), res); err != nil {
+		log.Error(err, "failed to update status")
+		return ctrl.Result{}, err
+	}
 	log.Info("Reconciling done")
-
 	return ctrl.Result{}, nil
 }
 
@@ -95,5 +103,8 @@ func (r *ControlPlaneReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&claiov1alpha1.ControlPlane{}).
 		Owns(&corev1.Secret{}).
 		Owns(&appsv1.Deployment{}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: 1,
+		}).
 		Complete(r)
 }

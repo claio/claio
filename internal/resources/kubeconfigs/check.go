@@ -19,7 +19,7 @@ package kubeconfigs
 import "fmt"
 
 func (k *KubeconfigFactory) Check() error {
-	log := k.Factory.Log
+	log := k.Factory.Base.Logger(1)
 	log.Info("   check kubeconfigs ...")
 	// kubeconfig-admin
 	_, _, err := k.GetAdminKubeconfig(false)

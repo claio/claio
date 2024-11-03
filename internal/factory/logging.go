@@ -18,6 +18,7 @@ package factory
 
 import (
 	"fmt"
+	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -26,19 +27,22 @@ type Log struct {
 	scope     string
 	namespace string
 	name      string
+	tabs      int
 }
 
-func NewLog(scope, namespace, name string) *Log {
+func NewLog(scope, namespace, name string, tabs int) *Log {
 	return &Log{
 		scope:     scope,
 		namespace: namespace,
 		name:      name,
+		tabs:      tabs,
 	}
 }
 
 func (l *Log) sprintf(template string, args ...any) string {
 	msg := fmt.Sprintf(template, args...)
-	return fmt.Sprintf("[%s/%s]   %s", l.namespace, l.name, msg)
+	spaces := strings.Repeat("   ", l.tabs)
+	return fmt.Sprintf("[%s/%s]   %s%s", l.namespace, l.name, spaces, msg)
 }
 
 func (l *Log) Info(template string, args ...any) {

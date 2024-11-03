@@ -49,7 +49,7 @@ func (s *CertificateFactory) createCertificateSecret(name string, cert *Certific
 }
 
 func (s *CertificateFactory) getCertificate(name, caName string, fn CertificateCreator, forceCreate bool) (*Certificate, bool, error) {
-	log := s.Factory.Log
+	log := s.Factory.Base.Logger(2)
 	isNew := false
 	cert, err := s.GetCertificateSecret(name)
 	if err != nil {

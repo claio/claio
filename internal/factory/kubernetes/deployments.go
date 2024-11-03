@@ -59,3 +59,30 @@ func (k *KubernetesClient) CreateDeployment(namespace, name string, yaml []byte)
 	}
 	return nil
 }
+
+func (k *KubernetesClient) UpdateDeployment(namespace, name string, yaml []byte) error {
+	decoder := serializer.NewCodecFactory(&k.Scheme).UniversalDecoder()
+	deployment := &appsv1.Deployment{}
+	if err := runtime.DecodeInto(decoder, yaml, deployment); err != nil {
+		return fmt.Errorf("   cannot decode deployment %s/%s: %s", namespace, name, err)
+	}
+	if err := ctrl.SetControllerReference(k.Resource, deployment, &k.Scheme); err != nil {
+		return fmt.Errorf("   cannot set owner-reference on deployment %s/%s: %s", namespace, name, err)
+	}
+	if err := k.Client.Update(k.Ctx, deployment); err != nil {
+		return fmt.Errorf("  failed to create deployment %s/%s: %s", namespace, name, err)
+	}
+	return nil
+}
+
+func (k *KubernetesClient) DeleteDeployment(namespace, name string, yaml []byte) error {
+	decoder := serializer.NewCodecFactory(&k.Scheme).UniversalDecoder()
+	deployment := &appsv1.Deployment{}
+	if err := runtime.DecodeInto(decoder, yaml, deployment); err != nil {
+		return fmt.Errorf("   cannot decode deployment %s/%s: %s", namespace, name, err)
+	}
+	if err := k.Client.Delete(k.Ctx, deployment); err != nil {
+		return fmt.Errorf("  failed to create deployment %s/%s: %s", namespace, name, err)
+	}
+	return nil
+}

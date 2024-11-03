@@ -28,12 +28,7 @@ type Factory struct {
 	Scope            string
 	Ctx              context.Context
 	Req              ctrl.Request
-	Log              *Log
 	KubernetesClient *kubernetes.KubernetesClient
-}
-
-type FactoryExtension struct {
-	Log *Log
 }
 
 func NewFactory(scope string, ctx context.Context, req ctrl.Request) *Factory {
@@ -41,9 +36,12 @@ func NewFactory(scope string, ctx context.Context, req ctrl.Request) *Factory {
 		Scope:            scope,
 		Ctx:              ctx,
 		Req:              req,
-		Log:              NewLog(scope, req.Namespace, req.Name),
 		KubernetesClient: nil,
 	}
+}
+
+func (f *Factory) Logger(tabs int) *Log {
+	return NewLog(f.Scope, f.Req.Namespace, f.Req.Name, tabs)
 }
 
 func (f *Factory) Namespace() string {

@@ -37,7 +37,7 @@ func (k *KubeconfigFactory) getKubeconfig(secretName, secretKey, clusterName, us
 	factory := k.Factory
 	namespace := factory.Namespace
 	kubernetesClient := factory.KubernetesClient
-	log := factory.Log
+	log := factory.Base.Logger(2)
 
 	secretData, err := kubernetesClient.GetSecret(namespace, secretName)
 	if err != nil {

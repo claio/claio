@@ -43,6 +43,7 @@ type ControlPlaneSpec struct {
 type ControlPlaneStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	TargetSpec ControlPlaneSpec `json:"target-spec"`
 }
 
 // +kubebuilder:object:root=true

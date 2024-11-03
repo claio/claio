@@ -69,6 +69,42 @@ spec:
             type: object
           status:
             description: ControlPlaneStatus defines the observed state of ControlPlane
+            properties:
+              target-spec:
+                description: |-
+                  INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+                  Important: Run "make" to regenerate code after modifying this file
+                properties:
+                  advertise-address:
+                    type: string
+                  advertise-host:
+                    type: string
+                  cluster-cidr:
+                    type: string
+                  database:
+                    type: string
+                  name:
+                    description: Foo is an example field of ControlPlane. Edit controlplane_types.go
+                      to remove/update
+                    type: string
+                  port:
+                    type: integer
+                  service-cidr:
+                    type: string
+                  version:
+                    type: string
+                required:
+                - advertise-address
+                - advertise-host
+                - cluster-cidr
+                - database
+                - name
+                - port
+                - service-cidr
+                - version
+                type: object
+            required:
+            - target-spec
             type: object
         type: object
     served: true

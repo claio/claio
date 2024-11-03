@@ -41,6 +41,22 @@ func (c *ControlPlaneDeploymentFactory) CreateDeployment(namespace, name string)
 	return c.Factory.KubernetesClient.CreateDeployment(c.Factory.Namespace, c.Factory.Name, deploymentYaml)
 }
 
+func (c *ControlPlaneDeploymentFactory) UpdateDeployment(namespace, name string) error {
+	deploymentYaml, err := c.Factory.Base.ToYaml(controlplaneTemplate, c.Factory.Spec)
+	if err != nil {
+		return fmt.Errorf("error generating yaml: %s", err)
+	}
+	return c.Factory.KubernetesClient.UpdateDeployment(c.Factory.Namespace, c.Factory.Name, deploymentYaml)
+}
+
+func (c *ControlPlaneDeploymentFactory) DeleteDeployment(namespace, name string) error {
+	deploymentYaml, err := c.Factory.Base.ToYaml(controlplaneTemplate, c.Factory.Spec)
+	if err != nil {
+		return fmt.Errorf("error generating yaml: %s", err)
+	}
+	return c.Factory.KubernetesClient.DeleteDeployment(c.Factory.Namespace, c.Factory.Name, deploymentYaml)
+}
+
 func (c *ControlPlaneDeploymentFactory) GetDeployment(namespace, name string) (*v1.Deployment, error) {
 	deployment, err := c.Factory.KubernetesClient.GetDeployment(namespace, name)
 	if err != nil {
