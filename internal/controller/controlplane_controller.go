@@ -18,12 +18,15 @@ package controller
 
 import (
 	"context"
+	"reflect"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	claiov1alpha1 "claio/api/v1alpha1"
 
@@ -70,19 +73,19 @@ func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// check secrets
 	certicateFactory := certificates.NewCertificateFactory(factory)
-	if err := certicateFactory.Check(); err != nil {
+	caChanged, apiDirty, err := certicateFactory.Check()
+	if err != nil {
 		log.Error(err, "failed to check secrets")
 		return ctrl.Result{}, err
 	}
 	kubeconfigFactory := kubeconfigs.NewKubeconfigFactory(factory)
-	if err := kubeconfigFactory.Check(); err != nil {
+	if err := kubeconfigFactory.Check(caChanged); err != nil {
 		log.Error(err, "failed to check kubeconfigs")
 		return ctrl.Result{}, err
 	}
-
 	// check deployment
 	deploymentFactory := deployments.NewControlPlaneDeploymentFactory(factory)
-	if err := deploymentFactory.Check(); err != nil {
+	if err := deploymentFactory.Check(apiDirty); err != nil {
 		log.Error(err, "failed to check deployment")
 		return ctrl.Result{}, err
 	}
@@ -105,6 +108,21 @@ func (r *ControlPlaneReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: 1,
+		}).
+		WithEventFilter(predicate.Funcs{
+			CreateFunc: func(e event.CreateEvent) bool {
+				isControlPlane := reflect.TypeOf(e.Object) == reflect.TypeOf(&claiov1alpha1.ControlPlane{})
+				return isControlPlane
+			},
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				isControlPlane := reflect.TypeOf(e.ObjectNew) == reflect.TypeOf(&claiov1alpha1.ControlPlane{})
+				return isControlPlane
+			},
+			DeleteFunc: func(e event.DeleteEvent) bool {
+				isSecret := reflect.TypeOf(e.Object) == reflect.TypeOf(&corev1.Secret{})
+				isDeployment := reflect.TypeOf(e.Object) == reflect.TypeOf(&appsv1.Deployment{})
+				return isSecret || isDeployment
+			},
 		}).
 		Complete(r)
 }

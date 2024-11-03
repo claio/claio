@@ -16,41 +16,47 @@ limitations under the License.
 
 package certificates
 
-import "fmt"
+import (
+	"fmt"
+)
 
-func (s *CertificateFactory) Check() error {
+func (s *CertificateFactory) Check() (bool, bool, error) {
 	log := s.Factory.Base.Logger(1)
 	log.Info("   check secrets ...")
 	// ca
 	_, caChanged, err := s.GetCa(false)
 	if err != nil {
-		return fmt.Errorf("failed to get ca")
+		return false, false, fmt.Errorf("failed to get ca")
 	}
 	// apiserver (force renew if CA has changed)
-	_, _, err = s.GetApiserver(caChanged)
+	_, certChanged, err := s.GetApiserver(caChanged)
 	if err != nil {
-		return fmt.Errorf("failed to get apiserver")
+		return caChanged, false, fmt.Errorf("failed to get apiserver")
 	}
 	// apiserver-kubelet-client (force renew if CA has changed)
-	_, _, err = s.GetApiserverKubeletClient(caChanged)
+	_, changed, err := s.GetApiserverKubeletClient(caChanged)
 	if err != nil {
-		return fmt.Errorf("failed to get apiserver-kubelet-client")
+		return caChanged, false, fmt.Errorf("failed to get apiserver-kubelet-client")
 	}
+	certChanged = changed || certChanged
 	// front-proxy-ca
 	_, frontProxyCaChanged, err := s.GetFrontProxyCa(false)
 	if err != nil {
-		return fmt.Errorf("failed to get front-proxy-ca")
+		return caChanged, false, fmt.Errorf("failed to get front-proxy-ca")
 	}
+	certChanged = frontProxyCaChanged || certChanged
 	// front-proxy-client
-	_, _, err = s.GetFrontProxyClient(frontProxyCaChanged)
+	_, changed, err = s.GetFrontProxyClient(frontProxyCaChanged)
 	if err != nil {
-		return fmt.Errorf("failed to get front-proxy-client")
+		return caChanged, false, fmt.Errorf("failed to get front-proxy-client")
 	}
+	certChanged = changed || certChanged
 	// sa
-	_, _, err = s.GetSa(false)
+	_, changed, err = s.GetSa(false)
 	if err != nil {
-		return fmt.Errorf("failed to get sa")
+		return caChanged, false, fmt.Errorf("failed to get sa")
 	}
+	certChanged = changed || certChanged
 
-	return nil
+	return caChanged, certChanged, nil
 }

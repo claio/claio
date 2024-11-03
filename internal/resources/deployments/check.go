@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-func (c *ControlPlaneDeploymentFactory) Check() error {
+func (c *ControlPlaneDeploymentFactory) Check(apiDirty bool) error {
 	log := c.Factory.Base.Logger(1)
 	log.Info("   check control-plane deployment ...")
 	deployment, err := c.GetDeployment(c.Factory.Namespace, "claio")
@@ -38,21 +38,26 @@ func (c *ControlPlaneDeploymentFactory) Check() error {
 		}
 		return nil
 	}
-	// deployment exists - update it if controlpane resource has changed
-	if !c.isEqual() {
+
+	// recreate deployment
+	if apiDirty || c.Factory.Spec.Database != c.Factory.Status.TargetSpec.Database {
+		log.Info("      structural change - need to stop control-plane")
+		if err := c.DeleteDeployment(c.Factory.Namespace, "claio"); err != nil {
+			log.Error(err, "       failed to delete deployment")
+			return err
+		}
+		log.Info("      deployment stopped")
 		if c.Factory.Spec.Database != c.Factory.Status.TargetSpec.Database {
-			log.Info("      database changed - need to stop control-plane")
-			if err := c.DeleteDeployment(c.Factory.Namespace, "claio"); err != nil {
-				log.Error(err, "       failed to delete deployment")
-				return err
-			}
-			log.Info("      deployment stopped")
 			log.Info("      migrating database ... (fake) ... (sleep 10)")
 			time.Sleep(10 * time.Second)
 			log.Info("      database migration done")
-			// the deployment will be startet with the next reconcilation run
-			return nil
 		}
+		// the deployment will be startet with the next reconcilation run
+		return nil
+	}
+
+	// update deployment
+	if !c.isEqual() {
 		log.Info("      update claio deployment")
 		if err := c.UpdateDeployment(c.Factory.Namespace, "claio"); err != nil {
 			log.Error(err, "       failed to update deployment")

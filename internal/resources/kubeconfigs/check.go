@@ -18,26 +18,26 @@ package kubeconfigs
 
 import "fmt"
 
-func (k *KubeconfigFactory) Check() error {
+func (k *KubeconfigFactory) Check(caChanged bool) error {
 	log := k.Factory.Base.Logger(1)
 	log.Info("   check kubeconfigs ...")
 	// kubeconfig-admin
-	_, _, err := k.GetAdminKubeconfig(false)
+	_, _, err := k.GetAdminKubeconfig(caChanged)
 	if err != nil {
 		return fmt.Errorf("failed to get kubeconfig-admin")
 	}
 	// kubeconfig-scheduler
-	_, _, err = k.GetSchedulerKubeconfig(false)
+	_, _, err = k.GetSchedulerKubeconfig(caChanged)
 	if err != nil {
 		return fmt.Errorf("failed to get kubeconfig-scheduler")
 	}
 	// kubeconfig-controller
-	_, _, err = k.GetControllerKubeconfig(false)
+	_, _, err = k.GetControllerKubeconfig(caChanged)
 	if err != nil {
 		return fmt.Errorf("failed to get kubeconfig-controller")
 	}
 	// kubeconfig-konnectivity
-	_, _, err = k.GetKonnectivityKubeconfig(false)
+	_, _, err = k.GetKonnectivityKubeconfig(caChanged)
 	if err != nil {
 		return fmt.Errorf("failed to get kubeconfig-konnectivity")
 	}

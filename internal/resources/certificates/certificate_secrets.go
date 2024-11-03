@@ -50,7 +50,6 @@ func (s *CertificateFactory) createCertificateSecret(name string, cert *Certific
 
 func (s *CertificateFactory) getCertificate(name, caName string, fn CertificateCreator, forceCreate bool) (*Certificate, bool, error) {
 	log := s.Factory.Base.Logger(2)
-	isNew := false
 	cert, err := s.GetCertificateSecret(name)
 	if err != nil {
 		return nil, false, err
@@ -59,14 +58,12 @@ func (s *CertificateFactory) getCertificate(name, caName string, fn CertificateC
 		if !forceCreate && cert.IsValid() {
 			return cert, false, nil
 		}
-		isNew = true
 		log.Info("   delete old/invalid secret: %s", name)
 		if err := s.Factory.KubernetesClient.DeleteSecret(s.Factory.Namespace, name); err != nil {
 			return nil, true, fmt.Errorf("  failed to delete invalid secret %s: %s", name, err)
 		}
 	}
 	log.Info("   create certificate and secret: %s", name)
-
 	if caName == "" {
 		// a CA
 		cert, err = fn(nil, nil, nil)
@@ -75,17 +72,17 @@ func (s *CertificateFactory) getCertificate(name, caName string, fn CertificateC
 		ip := s.Factory.Spec.AdvertiseAddress
 		ca, err1 := s.GetCertificateSecret(caName)
 		if err1 != nil {
-			return nil, isNew, fmt.Errorf("  failed to get CA (as secret) %s: %s", caName, err1)
+			return nil, true, fmt.Errorf("  failed to get CA (as secret) %s: %s", caName, err1)
 		}
 		cert, err = fn(ca, &host, &ip)
 	}
 	if err != nil {
-		return nil, isNew, fmt.Errorf("  failed to create certificate %s: %s", name, err)
+		return nil, true, fmt.Errorf("  failed to create certificate %s: %s", name, err)
 	}
 	if err := s.createCertificateSecret(name, cert); err != nil {
-		return nil, isNew, fmt.Errorf("  failed to create secret %s: %s", name, err)
+		return nil, true, fmt.Errorf("  failed to create secret %s: %s", name, err)
 	}
-	return cert, isNew, nil
+	return cert, true, nil
 }
 
 type CertificateCreator func(ca *Certificate, advertisedName, advertisedIp *string) (*Certificate, error)
