@@ -93,7 +93,7 @@ spec:
             - --authorization-mode=Node,RBAC
             - --client-ca-file=/etc/kubernetes/pki/ca.crt
             - --enable-bootstrap-token-auth=true
-            - --etcd-prefix=/{{ .Name }}
+            - --etcd-prefix=/tenant-{{ .Name }}
             - --etcd-servers={{ .Database }}
             - --external-hostname={{ .AdvertiseHost }}
             - --kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt

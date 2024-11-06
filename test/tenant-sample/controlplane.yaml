@@ -5,9 +5,9 @@ metadata:
     app.kubernetes.io/name: claio
     app.kubernetes.io/managed-by: kustomize
   name: claio
-  namespace: tenant-dev
+  namespace: tenant-sample
 spec:
-  name: dev
+  name: sample
   port: 6543
   version: 1.31.1
   database: http://claio-kine.claio-system.svc:2379

@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: claio-kine
+  name: claio-kine-2
   namespace: claio-system
   labels:
-    app: claio-kine
+    app: claio-kine-2
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: claio-kine
+      app: claio-kine-2
   template:
     metadata:
       labels:
-        app: claio-kine
+        app: claio-kine-2
     spec:
       terminationGracePeriodSeconds: 5
       containers:
@@ -27,7 +27,7 @@ spec:
                 key: root-password
         args:
           - --endpoint 
-          - "mysql://root:$(MARIADB_ROOT_PASSWORD)@tcp(claio-kine-mariadb:3306)/kine"
+          - "mysql://root:$(MARIADB_ROOT_PASSWORD)@tcp(claio-kine-mariadb:3306)/kine_2"
           - --ca-file
           - /etc/kine/secrets/ca.crt
           - --cert-file
@@ -46,11 +46,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: claio-kine
+  name: claio-kine-2
   namespace: claio-system
 spec:
   selector:
-    app: claio-kine
+    app: claio-kine-2
   ports:
     - name: kine
       port: 2379

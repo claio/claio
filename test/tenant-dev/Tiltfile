@@ -1,6 +1,0 @@
-k8s_yaml(["namespace.yaml", "controlplane.yaml"])
-k8s_resource(
-    objects=['claio:ControlPlane:tenant-dev'],
-    new_name="tenant-dev",
-    port_forwards="6543", 
-    labels=["Cluster-DEV"])
