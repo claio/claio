@@ -17,7 +17,7 @@ limitations under the License.
 package certificates
 
 import (
-	"claio/internal/factory"
+	"claio/internal/resources/controlplanes"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
@@ -26,12 +26,12 @@ import (
 	"time"
 )
 
-type CertificateFactory struct {
-	Factory *factory.ControlPlaneFactory
+type Factory struct {
+	Factory *controlplanes.Factory
 }
 
-func NewCertificateFactory(factory *factory.ControlPlaneFactory) *CertificateFactory {
-	return &CertificateFactory{
+func NewFactory(factory *controlplanes.Factory) *Factory {
+	return &Factory{
 		Factory: factory,
 	}
 }

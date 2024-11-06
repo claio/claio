@@ -22,7 +22,7 @@ import (
 
 // --- private helpers -------------------------------------------------
 
-func (s *CertificateFactory) GetCertificateSecret(name string) (*Certificate, error) {
+func (s *Factory) GetCertificateSecret(name string) (*Certificate, error) {
 	secretData, err := s.Factory.KubernetesClient.GetSecret(s.Factory.Namespace, name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secret %s/%s: %v", s.Factory.Namespace, name, err)
@@ -37,7 +37,7 @@ func (s *CertificateFactory) GetCertificateSecret(name string) (*Certificate, er
 	return cert, nil
 }
 
-func (s *CertificateFactory) createCertificateSecret(name string, cert *Certificate) error {
+func (s *Factory) createCertificateSecret(name string, cert *Certificate) error {
 	data := make(map[string][]byte)
 	data[name+".key"] = []byte(cert.Key)
 	data[name+".crt"] = []byte(cert.Cert)
@@ -48,7 +48,7 @@ func (s *CertificateFactory) createCertificateSecret(name string, cert *Certific
 	return nil
 }
 
-func (s *CertificateFactory) getCertificate(name, caName string, fn CertificateCreator, forceCreate bool) (*Certificate, bool, error) {
+func (s *Factory) getCertificate(name, caName string, fn CertificateCreator, forceCreate bool) (*Certificate, bool, error) {
 	log := s.Factory.Base.Logger(1)
 	cert, err := s.GetCertificateSecret(name)
 	if err != nil {
@@ -68,8 +68,8 @@ func (s *CertificateFactory) getCertificate(name, caName string, fn CertificateC
 		// a CA
 		cert, err = fn(nil, nil, nil)
 	} else {
-		host := s.Factory.Spec.AdvertiseHost
-		ip := s.Factory.Spec.AdvertiseAddress
+		host := s.Factory.Resource.Spec.AdvertiseHost
+		ip := s.Factory.Resource.Spec.AdvertiseAddress
 		ca, err1 := s.GetCertificateSecret(caName)
 		if err1 != nil {
 			return nil, true, fmt.Errorf("failed to get CA (as secret) %s: %s", caName, err1)
@@ -89,26 +89,26 @@ type CertificateCreator func(ca *Certificate, advertisedName, advertisedIp *stri
 
 // ----------------------------------------------------------------
 
-func (s *CertificateFactory) GetCa(forceCreate bool) (*Certificate, bool, error) {
+func (s *Factory) GetCa(forceCreate bool) (*Certificate, bool, error) {
 	return s.getCertificate("ca", "", NewCaCert, forceCreate)
 }
 
-func (s *CertificateFactory) GetApiserver(forceCreate bool) (*Certificate, bool, error) {
+func (s *Factory) GetApiserver(forceCreate bool) (*Certificate, bool, error) {
 	return s.getCertificate("apiserver", "ca", NewApiserverCert, forceCreate)
 }
 
-func (s *CertificateFactory) GetApiserverKubeletClient(forceCreate bool) (*Certificate, bool, error) {
+func (s *Factory) GetApiserverKubeletClient(forceCreate bool) (*Certificate, bool, error) {
 	return s.getCertificate("apiserver-kubelet-client", "ca", NewApiserverKubeletClientCert, forceCreate)
 }
 
-func (s *CertificateFactory) GetFrontProxyCa(forceCreate bool) (*Certificate, bool, error) {
+func (s *Factory) GetFrontProxyCa(forceCreate bool) (*Certificate, bool, error) {
 	return s.getCertificate("front-proxy-ca", "", NewFrontProxyCaCert, forceCreate)
 }
 
-func (s *CertificateFactory) GetFrontProxyClient(forceCreate bool) (*Certificate, bool, error) {
+func (s *Factory) GetFrontProxyClient(forceCreate bool) (*Certificate, bool, error) {
 	return s.getCertificate("front-proxy-client", "front-proxy-ca", NewFrontProxyClientCert, forceCreate)
 }
 
-func (s *CertificateFactory) GetSa(forceCreate bool) (*Certificate, bool, error) {
+func (s *Factory) GetSa(forceCreate bool) (*Certificate, bool, error) {
 	return s.getCertificate("sa", "", NewSaCert, forceCreate)
 }

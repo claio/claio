@@ -17,23 +17,23 @@ limitations under the License.
 package kubeconfigs
 
 import (
-	"claio/internal/factory"
 	"claio/internal/resources/certificates"
+	"claio/internal/resources/controlplanes"
 	"fmt"
 )
 
-type KubeconfigFactory struct {
-	Factory *factory.ControlPlaneFactory
+type Factory struct {
+	Factory *controlplanes.Factory
 }
 
-func NewKubeconfigFactory(f *factory.ControlPlaneFactory) *KubeconfigFactory {
-	return &KubeconfigFactory{
+func NewFactory(f *controlplanes.Factory) *Factory {
+	return &Factory{
 		Factory: f,
 	}
 }
 
 // --- private ----------------------------------------------------------------
-func (k *KubeconfigFactory) getKubeconfig(secretName, secretKey, clusterName, username string, forceCreate bool) ([]byte, bool, error) {
+func (k *Factory) getKubeconfig(secretName, secretKey, clusterName, username string, forceCreate bool) ([]byte, bool, error) {
 	factory := k.Factory
 	namespace := factory.Namespace
 	kubernetesClient := factory.KubernetesClient
@@ -53,7 +53,7 @@ func (k *KubeconfigFactory) getKubeconfig(secretName, secretKey, clusterName, us
 		}
 	}
 	log.Info("create %s", secretName)
-	certificateFactory := certificates.NewCertificateFactory(factory)
+	certificateFactory := certificates.NewFactory(factory)
 	ca, err := certificateFactory.GetCertificateSecret("ca")
 	if err != nil {
 		return nil, true, fmt.Errorf("error getting ca cert in ns %s: %s", namespace, err)
@@ -64,7 +64,7 @@ func (k *KubeconfigFactory) getKubeconfig(secretName, secretKey, clusterName, us
 	}
 	kubeconfig := NewKubeconfig(
 		clusterName,
-		factory.Spec.AdvertiseHost,
+		factory.Resource.Spec.AdvertiseHost,
 		username,
 		ca.Cert,
 		clientCert.Cert,
@@ -82,18 +82,18 @@ func (k *KubeconfigFactory) getKubeconfig(secretName, secretKey, clusterName, us
 
 // ----------------------------------------------------------------------------
 
-func (k *KubeconfigFactory) GetAdminKubeconfig(forceCreate bool) ([]byte, bool, error) {
+func (k *Factory) GetAdminKubeconfig(forceCreate bool) ([]byte, bool, error) {
 	return k.getKubeconfig("kubeconfig-admin", "super-admin.conf", k.Factory.Namespace, "kubernetes-admin", forceCreate)
 }
 
-func (k *KubeconfigFactory) GetSchedulerKubeconfig(forceCreate bool) ([]byte, bool, error) {
+func (k *Factory) GetSchedulerKubeconfig(forceCreate bool) ([]byte, bool, error) {
 	return k.getKubeconfig("kubeconfig-scheduler", "scheduler.conf", "kubernetes", "system:kube-scheduler", forceCreate)
 }
 
-func (k *KubeconfigFactory) GetControllerKubeconfig(forceCreate bool) ([]byte, bool, error) {
+func (k *Factory) GetControllerKubeconfig(forceCreate bool) ([]byte, bool, error) {
 	return k.getKubeconfig("kubeconfig-controller", "controller-manager.conf", "kubernetes", "system:kube-controller-manager", forceCreate)
 }
 
-func (k *KubeconfigFactory) GetKonnectivityKubeconfig(forceCreate bool) ([]byte, bool, error) {
+func (k *Factory) GetKonnectivityKubeconfig(forceCreate bool) ([]byte, bool, error) {
 	return k.getKubeconfig("kubeconfig-konnectivity", "konnectivity-server.conf", "kubernetes", "system:konnectivity-server", forceCreate)
 }

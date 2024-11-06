@@ -18,7 +18,7 @@ package kubeconfigs
 
 import "fmt"
 
-func (k *KubeconfigFactory) Check(caChanged bool) error {
+func (k *Factory) Check(caChanged bool) error {
 	log := k.Factory.Base.Logger(1)
 	log.Header("check kubeconfigs ...")
 	// kubeconfig-admin

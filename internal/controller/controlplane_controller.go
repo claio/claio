@@ -30,8 +30,8 @@ import (
 
 	claiov1alpha1 "claio/api/v1alpha1"
 
-	"claio/internal/factory"
 	"claio/internal/resources/certificates"
+	"claio/internal/resources/controlplanes"
 	"claio/internal/resources/deployments"
 	"claio/internal/resources/kubeconfigs"
 
@@ -67,27 +67,48 @@ func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	factory := factory.NewControlPlaneFactory(ctx, req, r.Client, r.Scheme, res)
-	log := factory.Base.Logger(0)
+	// check controlplane
+	controlplaneFactory := controlplanes.NewFactory(ctx, req, r.Client, r.Scheme, res)
+	log := controlplaneFactory.Base.Logger(0)
 	log.Header("--- Reconciling --------------------------------------")
-
-	// check secrets
-	certicateFactory := certificates.NewCertificateFactory(factory)
-	caChanged, apiDirty, err := certicateFactory.Check()
+	mode, err := controlplaneFactory.Check()
 	if err != nil {
-		log.Error(err, "failed to check secrets")
+		log.Error(err, "failed to check controlplane")
 		return ctrl.Result{}, err
 	}
-	kubeconfigFactory := kubeconfigs.NewKubeconfigFactory(factory)
-	if err := kubeconfigFactory.Check(caChanged); err != nil {
-		log.Error(err, "failed to check kubeconfigs")
-		return ctrl.Result{}, err
+
+	apiDirty := false
+	if mode != controlplanes.WANTDOWN {
+		// check secrets
+		certicateFactory := certificates.NewFactory(controlplaneFactory)
+		caChanged, localApiDirty, err := certicateFactory.Check()
+		if err != nil {
+			log.Error(err, "failed to check secrets")
+			return ctrl.Result{}, err
+		}
+		apiDirty = localApiDirty
+		kubeconfigFactory := kubeconfigs.NewFactory(controlplaneFactory)
+		if err := kubeconfigFactory.Check(caChanged); err != nil {
+			log.Error(err, "failed to check kubeconfigs")
+			return ctrl.Result{}, err
+		}
 	}
+
 	// check deployment
-	deploymentFactory := deployments.NewControlPlaneDeploymentFactory(factory)
-	if err := deploymentFactory.Check(apiDirty); err != nil {
+	deploymentFactory := deployments.NewFactory(controlplaneFactory)
+	if err := deploymentFactory.Check(apiDirty, mode); err != nil {
 		log.Error(err, "failed to check deployment")
 		return ctrl.Result{}, err
+	}
+
+	if mode == controlplanes.WANTDOWN {
+		log.Info("remove finalizer")
+		if err := controlplaneFactory.RemoveFinalizer(); err != nil {
+			log.Error(err, "failed to remove finalizer")
+			return ctrl.Result{}, err
+		}
+		log.Header("--- Reconciling done (EOL)")
+		return ctrl.Result{}, nil
 	}
 
 	// at this point target state == current state

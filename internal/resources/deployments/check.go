@@ -17,12 +17,13 @@ limitations under the License.
 package deployments
 
 import (
+	"claio/internal/resources/controlplanes"
 	"fmt"
 	"reflect"
 	"time"
 )
 
-func (c *ControlPlaneDeploymentFactory) Check(apiDirty bool) error {
+func (c *Factory) Check(apiDirty bool, mode int) error {
 	log := c.Factory.Base.Logger(1)
 	log.Header("check control-plane deployment ...")
 	deployment, err := c.GetDeployment(c.Factory.Namespace, "claio")
@@ -30,7 +31,19 @@ func (c *ControlPlaneDeploymentFactory) Check(apiDirty bool) error {
 		log.Error(err, "failed to retreive claio deployment")
 		return err
 	}
-	// deployment does not exist - create it
+
+	// stop deployment, controlplane wants to stop
+	if mode == controlplanes.WANTDOWN {
+		if deployment == nil {
+			log.Info("deployment already deleted")
+		} else {
+			if err := c.stopDeployment(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	if deployment == nil {
 		log.Info("create claio deployment")
 		if err := c.CreateDeployment(c.Factory.Namespace, "claio"); err != nil {
@@ -42,30 +55,17 @@ func (c *ControlPlaneDeploymentFactory) Check(apiDirty bool) error {
 
 	if apiDirty || !c.isEqual() {
 		log.Info("structural changes detected - need to stop control-plane")
-		//TODO: make this non-blocking
-		if err := c.DeleteDeployment(c.Factory.Namespace, "claio"); err != nil {
-			log.Error(err, "failed to delete deployment")
+		if err := c.stopDeployment(); err != nil {
+			log.Error(err, "failed to stop deployment")
 			return err
 		}
-		loop := 0
-		for {
-			if loop > 10 {
-				return fmt.Errorf("failed to stop deployment")
+		/*
+			if c.Factory.Resource.Spec.Database != c.Factory.Resource.Status.TargetSpec.Database {
+				log.Info("migrating database ... (fake) ... (sleep 10)")
+				time.Sleep(10 * time.Second)
+				log.Info("database migration done")
 			}
-			depl, err := c.GetDeployment(c.Factory.Namespace, "claio")
-			if err == nil && depl == nil {
-				break
-			}
-			time.Sleep(3 * time.Second)
-			loop++
-		}
-		log.Info("deployment stopped")
-
-		if c.Factory.Spec.Database != c.Factory.Status.TargetSpec.Database {
-			log.Info("migrating database ... (fake) ... (sleep 10)")
-			time.Sleep(10 * time.Second)
-			log.Info("database migration done")
-		}
+		*/
 
 		// the deployment will be startet with the next reconcilation run
 		return nil
@@ -73,6 +73,29 @@ func (c *ControlPlaneDeploymentFactory) Check(apiDirty bool) error {
 	return nil
 }
 
-func (c *ControlPlaneDeploymentFactory) isEqual() bool {
-	return reflect.DeepEqual(*c.Factory.Spec, c.Factory.Status.TargetSpec)
+func (c *Factory) isEqual() bool {
+	return reflect.DeepEqual(c.Factory.Resource.Spec, c.Factory.Resource.Status.TargetSpec)
+}
+
+func (c *Factory) stopDeployment() error {
+	log := c.Factory.Base.Logger(1)
+	log.Info("stop deployment")
+	if err := c.DeleteDeployment(c.Factory.Namespace, "claio"); err != nil {
+		log.Error(err, "failed to delete deployment")
+		return err
+	}
+	loop := 0
+	for {
+		if loop > 10 {
+			return fmt.Errorf("failed to stop deployment")
+		}
+		depl, err := c.GetDeployment(c.Factory.Namespace, "claio")
+		if err == nil && depl == nil {
+			break
+		}
+		time.Sleep(3 * time.Second)
+		loop++
+	}
+	log.Info("deployment stopped")
+	return nil
 }

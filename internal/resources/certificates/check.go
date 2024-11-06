@@ -20,7 +20,7 @@ import (
 	"fmt"
 )
 
-func (s *CertificateFactory) Check() (bool, bool, error) {
+func (s *Factory) Check() (bool, bool, error) {
 	log := s.Factory.Base.Logger(1)
 	log.Header("check secrets ...")
 	// ca

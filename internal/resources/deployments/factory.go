@@ -17,47 +17,47 @@ limitations under the License.
 package deployments
 
 import (
-	"claio/internal/factory"
+	"claio/internal/resources/controlplanes"
 	"fmt"
 
 	v1 "k8s.io/api/apps/v1"
 )
 
-type ControlPlaneDeploymentFactory struct {
-	Factory *factory.ControlPlaneFactory
+type Factory struct {
+	Factory *controlplanes.Factory
 }
 
-func NewControlPlaneDeploymentFactory(factory *factory.ControlPlaneFactory) *ControlPlaneDeploymentFactory {
-	return &ControlPlaneDeploymentFactory{
+func NewFactory(factory *controlplanes.Factory) *Factory {
+	return &Factory{
 		Factory: factory,
 	}
 }
 
-func (c *ControlPlaneDeploymentFactory) CreateDeployment(namespace, name string) error {
-	deploymentYaml, err := c.Factory.Base.ToYaml(controlplaneTemplate, c.Factory.Spec)
+func (c *Factory) CreateDeployment(namespace, name string) error {
+	deploymentYaml, err := c.Factory.Base.ToYaml(controlplaneTemplate, c.Factory.Resource.Spec)
 	if err != nil {
 		return fmt.Errorf("error generating yaml: %s", err)
 	}
 	return c.Factory.KubernetesClient.CreateDeployment(c.Factory.Namespace, c.Factory.Name, deploymentYaml)
 }
 
-func (c *ControlPlaneDeploymentFactory) UpdateDeployment(namespace, name string) error {
-	deploymentYaml, err := c.Factory.Base.ToYaml(controlplaneTemplate, c.Factory.Spec)
+func (c *Factory) UpdateDeployment(namespace, name string) error {
+	deploymentYaml, err := c.Factory.Base.ToYaml(controlplaneTemplate, c.Factory.Resource.Spec)
 	if err != nil {
 		return fmt.Errorf("error generating yaml: %s", err)
 	}
 	return c.Factory.KubernetesClient.UpdateDeployment(c.Factory.Namespace, c.Factory.Name, deploymentYaml)
 }
 
-func (c *ControlPlaneDeploymentFactory) DeleteDeployment(namespace, name string) error {
-	deploymentYaml, err := c.Factory.Base.ToYaml(controlplaneTemplate, c.Factory.Spec)
+func (c *Factory) DeleteDeployment(namespace, name string) error {
+	deploymentYaml, err := c.Factory.Base.ToYaml(controlplaneTemplate, c.Factory.Resource.Spec)
 	if err != nil {
 		return fmt.Errorf("error generating yaml: %s", err)
 	}
 	return c.Factory.KubernetesClient.DeleteDeployment(c.Factory.Namespace, c.Factory.Name, deploymentYaml)
 }
 
-func (c *ControlPlaneDeploymentFactory) GetDeployment(namespace, name string) (*v1.Deployment, error) {
+func (c *Factory) GetDeployment(namespace, name string) (*v1.Deployment, error) {
 	deployment, err := c.Factory.KubernetesClient.GetDeployment(namespace, name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting deployment: %s", err)

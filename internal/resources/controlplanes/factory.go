@@ -14,38 +14,46 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package factory
+package controlplanes
 
 import (
 	claiov1alpha1 "claio/api/v1alpha1"
+	"claio/internal/factory"
 	"claio/internal/factory/kubernetes"
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-type ControlPlaneFactory struct {
-	Base             *Factory
-	Spec             *claiov1alpha1.ControlPlaneSpec
-	Status           *claiov1alpha1.ControlPlaneStatus
+type Factory struct {
+	Base             *factory.Factory
+	Resource         *claiov1alpha1.ControlPlane
 	Namespace        string
 	Name             string
 	KubernetesClient *kubernetes.KubernetesClient
-	Log              *Log
+	Log              *factory.Log
 }
 
-func NewControlPlaneFactory(ctx context.Context, req ctrl.Request, rClient client.Client, rScheme *runtime.Scheme, res *claiov1alpha1.ControlPlane) *ControlPlaneFactory {
-	factory := NewFactory("ControlPlane", ctx, req)
+func NewFactory(ctx context.Context, req ctrl.Request, rClient client.Client, rScheme *runtime.Scheme, res *claiov1alpha1.ControlPlane) *Factory {
+	factory := factory.NewFactory("ControlPlane", ctx, req)
 	factory.KubernetesClient = kubernetes.NewKubernetesClient(ctx, rClient, *rScheme, res)
-	f := &ControlPlaneFactory{
+	f := &Factory{
 		Base:             factory,
-		Spec:             &res.Spec,
-		Status:           &res.Status,
+		Resource:         res,
 		Namespace:        factory.Namespace(),
 		Name:             factory.Name(),
 		KubernetesClient: factory.KubernetesClient,
 	}
 	return f
+}
+
+func (f *Factory) RemoveFinalizer() error {
+	controllerutil.RemoveFinalizer(f.Resource, finalizer)
+	if err := f.Base.KubernetesClient.Client.Update(f.Base.Ctx, f.Resource); err != nil {
+		return err
+	}
+	return nil
 }
