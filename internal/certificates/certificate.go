@@ -29,14 +29,6 @@ type Certificate struct {
 	Cert string
 }
 
-func NewCertificate(namespace, name, key, cert, pub string) *Certificate {
-	return &Certificate{
-		Key:  key,
-		Pub:  pub,
-		Cert: cert,
-	}
-}
-
 func NewCertificateFromSecretData(name string, data map[string][]byte) (*Certificate, error) {
 	cert := Certificate{}
 	if val, ok := data[name+".key"]; ok {

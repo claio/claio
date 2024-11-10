@@ -17,20 +17,23 @@ limitations under the License.
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (k *KubernetesClient) GetSecret(namespace, name string) (map[string][]byte, error) {
+func GetSecret(client k8sclient.Client, ctx context.Context, namespace, name string) (map[string][]byte, error) {
 	secret := &corev1.Secret{}
-	if err := k.Client.Get(
-		k.Ctx,
-		client.ObjectKey{
+	if err := client.Get(
+		ctx,
+		k8sclient.ObjectKey{
 			Namespace: namespace,
 			Name:      name,
 		},
@@ -44,7 +47,7 @@ func (k *KubernetesClient) GetSecret(namespace, name string) (map[string][]byte,
 	return secret.Data, nil
 }
 
-func (k *KubernetesClient) CreateSecret(namespace, name string, data map[string][]byte) error {
+func CreateSecret(client k8sclient.Client, ctx context.Context, namespace, name string, data map[string][]byte, reference client.Object, scheme *runtime.Scheme) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -52,23 +55,25 @@ func (k *KubernetesClient) CreateSecret(namespace, name string, data map[string]
 		},
 		Data: data,
 	}
-	if err := ctrl.SetControllerReference(k.Resource, secret, &k.Scheme); err != nil {
-		return fmt.Errorf("   cannot set owner-reference on secret %s/%s: %s", namespace, name, err)
+	if reference != nil {
+		if err := ctrl.SetControllerReference(reference, secret, scheme); err != nil {
+			return fmt.Errorf("   cannot set owner-reference on secret %s/%s: %s", namespace, name, err)
+		}
 	}
-	if err := k.Client.Create(k.Ctx, secret); err != nil {
+	if err := client.Create(ctx, secret); err != nil {
 		return fmt.Errorf("  failed to create secret %s/%s: %s", namespace, name, err)
 	}
 	return nil
 }
 
-func (k *KubernetesClient) DeleteSecret(namespace, name string) error {
+func DeleteSecret(client k8sclient.Client, ctx context.Context, namespace, name string) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
 	}
-	if err := k.Client.Delete(k.Ctx, secret); err != nil {
+	if err := client.Delete(ctx, secret); err != nil {
 		if k8serrors.IsNotFound(err) {
 			return nil
 		}

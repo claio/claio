@@ -16,12 +16,3 @@ A hosted control plane and machine controller manager (all in one).
 ./tilt down --delete-namespaces
 ./cluster.sh down
 ```
-
-### Installation History (not needed anymore)
-
-```sh
-go mod init claio
-kubebuilder init --domain github.com
-kubebuilder create api --resource --controller --group claio --version v1alpha1 --kind ControlPlane
-kubebuilder create api --resource --controller --group claio --version v1alpha1 --kind Machine
-```

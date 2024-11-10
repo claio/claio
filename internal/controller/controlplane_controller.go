@@ -21,7 +21,6 @@ import (
 	"reflect"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -29,11 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	claiov1alpha1 "claio/api/v1alpha1"
-
-	"claio/internal/resources/certificates"
 	"claio/internal/resources/controlplanes"
-	"claio/internal/resources/deployments"
-	"claio/internal/resources/kubeconfigs"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -61,64 +56,17 @@ type ControlPlaneReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.18.2/pkg/reconcile
 func (r *ControlPlaneReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	// fetch the ControlPlane instance
-	res := &claiov1alpha1.ControlPlane{}
-	if err := r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, res); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	// check controlplane
-	controlplaneFactory := controlplanes.NewFactory(ctx, req, r.Client, r.Scheme, res)
-	log := controlplaneFactory.Base.Logger(0)
-	log.Header("--- Reconciling --------------------------------------")
-	mode, err := controlplaneFactory.Check()
+	controlPlane, err := controlplanes.NewControlPlane(ctx, req, r.Client, r.Scheme)
 	if err != nil {
-		log.Error(err, "failed to check controlplane")
 		return ctrl.Result{}, err
 	}
-
-	apiDirty := false
-	if mode != controlplanes.WANTDOWN {
-		// check secrets
-		certicateFactory := certificates.NewFactory(controlplaneFactory)
-		caChanged, localApiDirty, err := certicateFactory.Check()
-		if err != nil {
-			log.Error(err, "failed to check secrets")
-			return ctrl.Result{}, err
-		}
-		apiDirty = localApiDirty
-		kubeconfigFactory := kubeconfigs.NewFactory(controlplaneFactory)
-		if err := kubeconfigFactory.Check(caChanged); err != nil {
-			log.Error(err, "failed to check kubeconfigs")
-			return ctrl.Result{}, err
-		}
-	}
-
-	// check deployment
-	deploymentFactory := deployments.NewFactory(controlplaneFactory)
-	if err := deploymentFactory.Check(apiDirty, mode); err != nil {
-		log.Error(err, "failed to check deployment")
-		return ctrl.Result{}, err
-	}
-
-	if mode == controlplanes.WANTDOWN {
-		log.Info("remove finalizer")
-		if err := controlplaneFactory.RemoveFinalizer(); err != nil {
-			log.Error(err, "failed to remove finalizer")
-			return ctrl.Result{}, err
-		}
-		log.Header("--- Reconciling done (EOL)")
+	if controlPlane == nil {
 		return ctrl.Result{}, nil
 	}
-
-	// at this point target state == current state
-	res.Status = claiov1alpha1.ControlPlaneStatus{TargetSpec: res.Spec}
-	if err := r.Status().Update(context.Background(), res); err != nil {
-		log.Error(err, "failed to update status")
-		return ctrl.Result{}, err
-	}
-	log.Header("--- Reconciling done")
-	return ctrl.Result{}, nil
+	controlPlane.LogHeader("--- Reconciling --------------------------------------")
+	err = controlPlane.Reconcile()
+	controlPlane.LogHeader("--- Reconciling Done ---------------------------------")
+	return ctrl.Result{}, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -132,12 +80,15 @@ func (r *ControlPlaneReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}).
 		WithEventFilter(predicate.Funcs{
 			CreateFunc: func(e event.CreateEvent) bool {
-				isControlPlane := reflect.TypeOf(e.Object) == reflect.TypeOf(&claiov1alpha1.ControlPlane{})
-				return isControlPlane
+				return reflect.TypeOf(e.Object) == reflect.TypeOf(&claiov1alpha1.ControlPlane{})
 			},
 			UpdateFunc: func(e event.UpdateEvent) bool {
-				isControlPlane := reflect.TypeOf(e.ObjectNew) == reflect.TypeOf(&claiov1alpha1.ControlPlane{})
-				return isControlPlane
+				if reflect.TypeOf(e.ObjectNew) == reflect.TypeOf(&claiov1alpha1.ControlPlane{}) {
+					if e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration() {
+						return true
+					}
+				}
+				return false
 			},
 			DeleteFunc: func(e event.DeleteEvent) bool {
 				isSecret := reflect.TypeOf(e.Object) == reflect.TypeOf(&corev1.Secret{})

@@ -14,55 +14,124 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package deployments
+package controlplanes
 
 import (
-	"claio/internal/resources/controlplanes"
 	"fmt"
+	"reflect"
+	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 )
 
-type Factory struct {
-	Factory *controlplanes.Factory
-}
-
-func NewFactory(factory *controlplanes.Factory) *Factory {
-	return &Factory{
-		Factory: factory,
-	}
-}
-
-func (c *Factory) CreateDeployment(namespace, name string) error {
-	deploymentYaml, err := c.Factory.Base.ToYaml(controlplaneTemplate, c.Factory.Resource.Spec)
+func (c *ControlPlane) CreateClaioDeployment() error {
+	deploymentYaml, err := c.ToYaml(controlplaneTemplate, c.Object.Spec)
 	if err != nil {
 		return fmt.Errorf("error generating yaml: %s", err)
 	}
-	return c.Factory.KubernetesClient.CreateDeployment(c.Factory.Namespace, c.Factory.Name, deploymentYaml)
+	return c.CreateDeployment("claio", deploymentYaml)
 }
 
-func (c *Factory) UpdateDeployment(namespace, name string) error {
-	deploymentYaml, err := c.Factory.Base.ToYaml(controlplaneTemplate, c.Factory.Resource.Spec)
+func (c *ControlPlane) UpdateClaioDeployment() error {
+	deploymentYaml, err := c.ToYaml(controlplaneTemplate, c.Object.Spec)
 	if err != nil {
 		return fmt.Errorf("error generating yaml: %s", err)
 	}
-	return c.Factory.KubernetesClient.UpdateDeployment(c.Factory.Namespace, c.Factory.Name, deploymentYaml)
+	return c.UpdateDeployment("claio", deploymentYaml)
 }
 
-func (c *Factory) DeleteDeployment(namespace, name string) error {
-	deploymentYaml, err := c.Factory.Base.ToYaml(controlplaneTemplate, c.Factory.Resource.Spec)
+func (c *ControlPlane) DeleteClaioDeployment() error {
+	deploymentYaml, err := c.ToYaml(controlplaneTemplate, c.Object.Spec)
 	if err != nil {
 		return fmt.Errorf("error generating yaml: %s", err)
 	}
-	return c.Factory.KubernetesClient.DeleteDeployment(c.Factory.Namespace, c.Factory.Name, deploymentYaml)
+	return c.DeleteDeployment("claio", deploymentYaml)
 }
 
-func (c *Factory) GetDeployment(namespace, name string) (*v1.Deployment, error) {
-	deployment, err := c.Factory.KubernetesClient.GetDeployment(namespace, name)
+func (c *ControlPlane) GetClaioDeployment() (*v1.Deployment, error) {
+	deployment, err := c.GetDeployment("claio")
 	if err != nil {
 		return nil, fmt.Errorf("error getting deployment: %s", err)
 	}
 	return deployment, nil
+}
+
+func (c *ControlPlane) ReconcileDeployment(apiDirty bool, mode string) error {
+	c.LogHeader("check deployment ...")
+	deployment, err := c.GetClaioDeployment()
+	if err != nil {
+		c.LogError(err, "failed to retreive claio deployment")
+		return err
+	}
+
+	// stop deployment, controlplane wants to stop
+	if mode == c.STATUS_WANTDOWN {
+		if deployment == nil {
+			c.LogInfo("deployment already deleted")
+		} else {
+			if err := c.stopPods(deployment); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if deployment == nil {
+		c.LogInfo("create claio deployment")
+		if err := c.CreateClaioDeployment(); err != nil {
+			c.LogError(err, "failed to create deployment")
+			return err
+		}
+		return nil
+	}
+
+	if apiDirty || !c.isEqual() {
+		c.LogInfo("structural changes detected - need to stop control-plane")
+		if err := c.stopDeployment(); err != nil {
+			c.LogError(err, "failed to stop deployment")
+			return err
+		}
+
+		// the deployment will be startet with the next reconcilation run
+		return nil
+	}
+	return nil
+}
+
+func (c *ControlPlane) isEqual() bool {
+	return reflect.DeepEqual(c.Object.Spec, c.Object.Status.TargetSpec)
+}
+
+func (c *ControlPlane) stopDeployment() error {
+	c.LogInfo("stop deployment")
+	if err := c.DeleteClaioDeployment(); err != nil {
+		c.LogError(err, "failed to delete deployment")
+		return err
+	}
+	loop := 0
+	for {
+		if loop > 10 {
+			return fmt.Errorf("failed to delete deployment (loop)")
+		}
+		depl, err := c.GetClaioDeployment()
+		if err == nil && depl == nil {
+			break
+		}
+		time.Sleep(3 * time.Second)
+		loop++
+	}
+	c.LogInfo("deployment stopped")
+	return nil
+}
+
+func (c *ControlPlane) stopPods(deployment *appsv1.Deployment) error {
+	c.LogInfo("scale replicas down to 0")
+	*deployment.Spec.Replicas = 0
+	if err := c.UpdateClaioDeployment(); err != nil {
+		return fmt.Errorf("failed to set deployments replicas to 0")
+	}
+	return nil
 }
 
 const controlplaneTemplate = `apiVersion: apps/v1

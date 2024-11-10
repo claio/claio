@@ -17,6 +17,7 @@ limitations under the License.
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -25,13 +26,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (k *KubernetesClient) GetDeployment(namespace, name string) (*appsv1.Deployment, error) {
+func GetDeployment(client k8sclient.Client, ctx context.Context, namespace, name string) (*appsv1.Deployment, error) {
 	deployment := &appsv1.Deployment{}
-	if err := k.Client.Get(
-		k.Ctx,
-		client.ObjectKey{
+	if err := client.Get(
+		ctx,
+		k8sclient.ObjectKey{
 			Namespace: namespace,
 			Name:      name,
 		},
@@ -45,43 +47,47 @@ func (k *KubernetesClient) GetDeployment(namespace, name string) (*appsv1.Deploy
 	return deployment, nil
 }
 
-func (k *KubernetesClient) CreateDeployment(namespace, name string, yaml []byte) error {
-	decoder := serializer.NewCodecFactory(&k.Scheme).UniversalDecoder()
+func CreateDeployment(client k8sclient.Client, ctx context.Context, namespace, name string, yaml []byte, reference client.Object, scheme *runtime.Scheme) error {
+	decoder := serializer.NewCodecFactory(scheme).UniversalDecoder()
 	deployment := &appsv1.Deployment{}
 	if err := runtime.DecodeInto(decoder, yaml, deployment); err != nil {
 		return fmt.Errorf("   cannot decode deployment %s/%s: %s", namespace, name, err)
 	}
-	if err := ctrl.SetControllerReference(k.Resource, deployment, &k.Scheme); err != nil {
-		return fmt.Errorf("   cannot set owner-reference on deployment %s/%s: %s", namespace, name, err)
+	if reference != nil {
+		if err := ctrl.SetControllerReference(reference, deployment, scheme); err != nil {
+			return fmt.Errorf("   cannot set owner-reference on deployment %s/%s: %s", namespace, name, err)
+		}
 	}
-	if err := k.Client.Create(k.Ctx, deployment); err != nil {
+	if err := client.Create(ctx, deployment); err != nil {
 		return fmt.Errorf("  failed to create deployment %s/%s: %s", namespace, name, err)
 	}
 	return nil
 }
 
-func (k *KubernetesClient) UpdateDeployment(namespace, name string, yaml []byte) error {
-	decoder := serializer.NewCodecFactory(&k.Scheme).UniversalDecoder()
+func UpdateDeployment(client k8sclient.Client, ctx context.Context, namespace, name string, yaml []byte, reference client.Object, scheme *runtime.Scheme) error {
+	decoder := serializer.NewCodecFactory(scheme).UniversalDecoder()
 	deployment := &appsv1.Deployment{}
 	if err := runtime.DecodeInto(decoder, yaml, deployment); err != nil {
 		return fmt.Errorf("   cannot decode deployment %s/%s: %s", namespace, name, err)
 	}
-	if err := ctrl.SetControllerReference(k.Resource, deployment, &k.Scheme); err != nil {
-		return fmt.Errorf("   cannot set owner-reference on deployment %s/%s: %s", namespace, name, err)
+	if reference != nil {
+		if err := ctrl.SetControllerReference(reference, deployment, scheme); err != nil {
+			return fmt.Errorf("   cannot set owner-reference on deployment %s/%s: %s", namespace, name, err)
+		}
 	}
-	if err := k.Client.Update(k.Ctx, deployment); err != nil {
+	if err := client.Update(ctx, deployment); err != nil {
 		return fmt.Errorf("  failed to create deployment %s/%s: %s", namespace, name, err)
 	}
 	return nil
 }
 
-func (k *KubernetesClient) DeleteDeployment(namespace, name string, yaml []byte) error {
-	decoder := serializer.NewCodecFactory(&k.Scheme).UniversalDecoder()
+func DeleteDeployment(client k8sclient.Client, ctx context.Context, namespace, name string, yaml []byte, reference client.Object, scheme *runtime.Scheme) error {
+	decoder := serializer.NewCodecFactory(scheme).UniversalDecoder()
 	deployment := &appsv1.Deployment{}
 	if err := runtime.DecodeInto(decoder, yaml, deployment); err != nil {
 		return fmt.Errorf("   cannot decode deployment %s/%s: %s", namespace, name, err)
 	}
-	if err := k.Client.Delete(k.Ctx, deployment); err != nil {
+	if err := client.Delete(ctx, deployment); err != nil {
 		return fmt.Errorf("  failed to create deployment %s/%s: %s", namespace, name, err)
 	}
 	return nil
