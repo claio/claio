@@ -43,5 +43,5 @@ docker_build_with_restart('controller:latest', '.',
     ]
 )
 
-include('./kine/Tiltfile')
+include('./nats/Tiltfile')
 include('./test/tenant-sample/Tiltfile')

@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  labels:
+    app: nats
+  name: nats
+  namespace: claio-system
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: nats

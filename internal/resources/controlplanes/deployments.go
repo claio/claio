@@ -163,7 +163,7 @@ spec:
             - --client-ca-file=/etc/kubernetes/pki/ca.crt
             - --enable-bootstrap-token-auth=true
             - --etcd-prefix=/tenant-{{ .Name }}
-            - --etcd-servers={{ .Database }}
+            - --etcd-servers=http://localhost:2379
             - --external-hostname={{ .AdvertiseHost }}
             - --kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt
             - --kubelet-client-key=/etc/kubernetes/pki/apiserver-kubelet-client.key
@@ -324,7 +324,12 @@ spec:
               name: kubernetes-pki
               readOnly: true
             - mountPath: /run/konnectivity
-              name: konnectivity-uds        
+              name: konnectivity-uds     
+        - name: kine
+          image: rancher/kine:v0.13.2
+          args:
+            - --endpoint 
+            - "nats://nats.claio-system.svc?noEmbed&bucket=tenant-sample"
       volumes:
         - name: kubernetes-pki
           projected:

@@ -19,29 +19,9 @@ spec:
       containers:
       - name: kine
         image: rancher/kine:v0.13.2
-        env:
-          - name: MARIADB_ROOT_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: claio-kine-mariadb
-                key: root-password
         args:
           - --endpoint 
-          - "mysql://root:$(MARIADB_ROOT_PASSWORD)@tcp(claio-kine-mariadb:3306)/kine"
-          - --ca-file
-          - /etc/kine/secrets/ca.crt
-          - --cert-file
-          - /etc/kine/secrets/server.crt
-          - --key-file
-          - /etc/kine/secrets/server.key
-        volumeMounts:
-          - name: mariadb
-            mountPath: /etc/kine/secrets
-            readOnly: true
-      volumes:
-        - name: mariadb
-          secret:
-            secretName: claio-kine-mariadb  
+          - "nats://?bucket=tenant-sample&dontListen"
 ---
 apiVersion: v1
 kind: Service

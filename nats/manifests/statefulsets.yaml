@@ -1,0 +1,155 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: nats
+  name: nats
+  namespace: claio-system
+spec:
+  podManagementPolicy: Parallel
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nats
+  serviceName: nats-headless
+  template:
+    metadata:
+      labels:
+        app: nats
+    spec:
+      containers:
+      - name: nats
+        args:
+          - --config
+          - /etc/nats-config/nats.conf
+        env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: SERVER_NAME
+            value: $(POD_NAME)
+        image: nats:2.10.22-alpine
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - nats-server
+              - -sl=ldm=/var/run/nats/nats.pid
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz?js-enabled-only=true
+            port: monitor
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 5        
+        ports:
+          - containerPort: 4222
+            name: nats
+          - containerPort: 6222
+            name: cluster
+          - containerPort: 8222
+            name: monitor
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz?js-server-only=true
+            port: monitor
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        startupProbe:
+          failureThreshold: 90
+          httpGet:
+            path: /healthz
+            port: monitor
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        volumeMounts:
+          - mountPath: /etc/nats-config
+            name: config
+          - mountPath: /var/run/nats
+            name: pid
+          - mountPath: /data
+            name: nats-js
+      - name: reloader
+        args:
+          - -pid
+          - /var/run/nats/nats.pid
+          - -config
+          - /etc/nats-config/nats.conf
+        image: natsio/nats-server-config-reloader:0.16.0        
+        volumeMounts:
+          - mountPath: /var/run/nats
+            name: pid
+          - mountPath: /etc/nats-config
+            name: config
+      enableServiceLinks: false
+      shareProcessNamespace: true
+      volumes:
+        - name: config
+          secret:
+            secretName: nats
+            items:
+              - key: nats.conf    
+                path: nats.conf            
+        - emptyDir: {}
+          name: pid
+        - name: nats-js
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: nats-box
+  name: nats-box
+  namespace: claio-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nats-box
+  template:
+    metadata:
+      labels:
+        app: nats-box
+    spec:
+      containers:
+      - name: nats-box
+        image: natsio/nats-box:0.14.5
+        command:
+          - sh
+          - -ec
+          - |
+            work_dir="$(pwd)"
+            mkdir -p "$XDG_CONFIG_HOME/nats"
+            cd "$XDG_CONFIG_HOME/nats"
+            if ! [ -s context ]; then
+              ln -s /etc/nats-contexts context
+            fi
+            if ! [ -f context.txt ]; then
+              echo -n "default" > context.txt
+            fi
+            cd "$work_dir"
+            exec /entrypoint.sh "$@"
+          - --        
+        args:
+          - sh
+          - -ec
+          - trap true INT TERM; sleep infinity & wait
+        volumeMounts:
+          - mountPath: /etc/nats-contexts
+            name: contexts
+      volumes:
+        - name: contexts        
+          secret:
+            secretName: nats
+            items:
+              - key: nats-box.conf
+                path: default.json
