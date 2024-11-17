@@ -7,7 +7,7 @@ metadata:
   namespace: claio-system
 spec:
   podManagementPolicy: Parallel
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: nats
@@ -77,18 +77,6 @@ spec:
             name: pid
           - mountPath: /data
             name: nats-js
-      - name: reloader
-        args:
-          - -pid
-          - /var/run/nats/nats.pid
-          - -config
-          - /etc/nats-config/nats.conf
-        image: natsio/nats-server-config-reloader:0.16.0        
-        volumeMounts:
-          - mountPath: /var/run/nats
-            name: pid
-          - mountPath: /etc/nats-config
-            name: config
       enableServiceLinks: false
       shareProcessNamespace: true
       volumes:

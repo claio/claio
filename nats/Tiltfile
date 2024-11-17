@@ -1,5 +1,7 @@
+local('kubectl apply -k manifests')
+
 k8s_yaml(local('kustomize build manifests'))
-local_resource('nats-deploy', 'kubectl delete statefulset nats && kubectl apply -k manifests', deps="manifests", labels=['nats'])
+local_resource('nats-deploy', 'kubectl delete statefulset nats nats-box -n claio-system && kubectl apply -k manifests', deps="manifests", labels=['nats'])
 
 k8s_resource('nats', labels=['nats'])
 k8s_resource('nats-box', labels=['nats'])
