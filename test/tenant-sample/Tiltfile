@@ -3,4 +3,5 @@ k8s_resource(
     objects=['claio:ControlPlane:tenant-sample'],
     new_name="tenant-sample",
     port_forwards="6543", 
+    resource_deps=['nats'],
     labels=["Cluster-SAMPLE"])

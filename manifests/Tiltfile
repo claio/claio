@@ -1,0 +1,4 @@
+# nats (with complete reload on change)
+k8s_yaml('nats.yaml')
+k8s_resource('nats', labels=['nats'])
+k8s_resource('nats-box', labels=['nats'])

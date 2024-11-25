@@ -1,3 +1,4 @@
+# NATS jetstream server (single)
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -83,14 +84,12 @@ spec:
         - name: config
           secret:
             secretName: nats
-            items:
-              - key: nats.conf    
-                path: nats.conf            
         - emptyDir: {}
           name: pid
         - name: nats-js
           emptyDir: {}
 ---
+# nats-box (nats client)
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -131,13 +130,54 @@ spec:
           - sh
           - -ec
           - trap true INT TERM; sleep infinity & wait
-        volumeMounts:
-          - mountPath: /etc/nats-contexts
-            name: contexts
-      volumes:
-        - name: contexts        
-          secret:
-            secretName: nats
-            items:
-              - key: nats-box.conf
-                path: default.json
+---
+# nats service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: nats
+  name: nats
+  namespace: claio-system
+spec:
+  ports:
+  - appProtocol: tcp
+    name: nats
+    port: 4222
+    targetPort: nats
+  selector:
+    app: nats
+---
+# secrets (dev not realy secret ;-)
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app: nats
+  name: nats
+  namespace: claio-system
+stringData:
+  nats.conf: |
+    {
+      "http_port": 8222,
+      "jetstream": {
+        "max_file_store": 10Gi,
+        "max_memory_store": 0,
+        "store_dir": "/data"
+      },
+      "lame_duck_duration": "30s",
+      "lame_duck_grace_period": "10s",
+      "pid_file": "/var/run/nats/nats.pid",
+      "port": 4222,
+      "server_name": $SERVER_NAME,
+      "accounts": {
+        "$SYS": {
+          "users": [
+            {
+              "user": "system",
+              "password": "ezQOdkulJeOmXfPRboo0"
+            }
+          ]
+        }
+      }
+    }

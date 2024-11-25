@@ -36,6 +36,7 @@ kindV1Alpha4Cluster:
         serviceSubnet: 192.168.128.0/17
     nodes:
         - role: control-plane
+        - role: worker
 EOF
 
 function portforward() {

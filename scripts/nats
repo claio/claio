@@ -1,3 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
-kubectl exec -it nats-box-0 -n claio-system -- nats "$@"
+if [ "$1" == "server" ]; then
+    password=$(kubectl get secrets nats -n claio-system -o jsonpath='{.data.nats\.conf}' |base64 -d | grep password | sed 's/^.*: //')
+    password="${password:1:-1}"
+    auth="--user system --password $password"
+fi
+
+kubectl exec -it nats-box-0 -n claio-system -- nats --server nats://nats:4222 $auth "$@"
