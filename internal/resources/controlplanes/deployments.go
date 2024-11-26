@@ -86,7 +86,7 @@ func (c *ControlPlane) ReconcileDeployment(apiDirty bool, mode string) error {
 		return nil
 	}
 
-	if apiDirty || !c.isEqual() {
+	if apiDirty || !reflect.DeepEqual(c.Object.Spec, c.Object.Status.TargetSpec) {
 		c.LogInfo("structural changes detected - need to stop control-plane")
 		if err := c.stopDeployment(); err != nil {
 			c.LogError(err, "failed to stop deployment")
@@ -97,10 +97,6 @@ func (c *ControlPlane) ReconcileDeployment(apiDirty bool, mode string) error {
 		return nil
 	}
 	return nil
-}
-
-func (c *ControlPlane) isEqual() bool {
-	return reflect.DeepEqual(c.Object.Spec, c.Object.Status.TargetSpec)
 }
 
 func (c *ControlPlane) stopDeployment() error {

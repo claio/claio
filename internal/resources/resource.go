@@ -26,6 +26,7 @@ import (
 	"claio/internal/kubernetes"
 
 	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -146,6 +147,23 @@ func (r *Resource[T]) DeleteDeployment(name string, yaml []byte) error {
 
 func (r *Resource[T]) GetDeployment(name string) (*v1.Deployment, error) {
 	return kubernetes.GetDeployment(r.Client, r.Ctx, r.Namespace(), name)
+}
+
+// services
+func (r *Resource[T]) CreateService(name string, yaml []byte) error {
+	return kubernetes.CreateService(r.Client, r.Ctx, r.Namespace(), name, yaml, r.Object, r.Scheme)
+}
+
+func (r *Resource[T]) UpdateService(name string, yaml []byte) error {
+	return kubernetes.UpdateService(r.Client, r.Ctx, r.Namespace(), name, yaml, r.Object, r.Scheme)
+}
+
+func (r *Resource[T]) DeleteService(name string, yaml []byte) error {
+	return kubernetes.DeleteService(r.Client, r.Ctx, r.Namespace(), name, yaml, r.Object, r.Scheme)
+}
+
+func (r *Resource[T]) GetService(name string) (*corev1.Service, error) {
+	return kubernetes.GetService(r.Client, r.Ctx, r.Namespace(), name)
 }
 
 // --- helper ----------------------------------------------------------------

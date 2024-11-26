@@ -84,10 +84,14 @@ func (r *ControlPlane) Reconcile() error {
 		}
 	}
 
-	// check deployment
+	// check deployment and service
 	if status == r.STATUS_UP || status == r.STATUS_WANTDOWN {
 		if err := r.ReconcileDeployment(apiDirty, status); err != nil {
 			r.LogError(err, "failed to check deployment")
+			return err
+		}
+		if err := r.ReconcileService(apiDirty, status); err != nil {
+			r.LogError(err, "failed to check service")
 			return err
 		}
 	}

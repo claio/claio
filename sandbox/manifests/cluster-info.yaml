@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-info
+  namespace: kube-public
+data:
+  kubeconfig: |
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM1ekNDQWMrZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRJME1URXlOakl3TXpJMU9Wb1hEVE0wTVRFeU5qSXdNekkxT1Zvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTTk2CkhGR3hrNW0zRUZhVWdDdEdTdDlCQnFNYlBLeDFRVi9TeXlyWEMwNGtqMzFmdnhtak1lS1hGL1IxdCs1VXFjQ1cKdHdGdzUrZFRIN1pkbUQ1dXNIVWp1TzUzbm5xQ2dOZGZESSt0VW5pMTk1VTZqT3lROVRITk03cmVNMlVQYmR5VgpVN1ZCelVVR3Q1d3o5dC9OYk50OU1pQmVia2k2ZTBCTUJDay9kRFBNcXA0VjdEeFY0OXhwcUJ2K2IxNGxadDJwCldQYWhocU9VSy9FTE9qZ3FXTFFiaXRQT3hnK21xNDdnZUVFTHB0SXowZTZYWDFUVG93VXdLSHd3bVRHTVZtajYKbG9YeVo4N0h1STZQQXBReU1WRGdEbHdFUUxQL1VQYnl2NkkyMWxkT2hGbThPWlZqZ3BNNFUrMFJvV0s3R1p3Qwo2QTdsdUdjWlFHUnk3dURNSjM4Q0F3RUFBYU5DTUVBd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0hRWURWUjBPQkJZRUZHRkdkdWMvMXEyUlJweStnb3ZvSHRMN2JUWXlNQTBHQ1NxR1NJYjMKRFFFQkN3VUFBNElCQVFDb1dVaGhnQ2JqQVRrKzZxdENaVUg1Um16ZVZ1bkU3WXYwOGJ4eTMwMm1uR1FlUmJPdwpUYkxuQmg1K1U4QzRRNWZMbXNlWDI2S1FLaXFPQmJKM284dnN6QTVmVFVGVVpDUWN2TW56bS9QYWpsNTl5emFMCjR0SzJZdWIvRkhDbkNjUnd1VGFGWlNBKzBBNzBkb2o4cHE3bmF3d1ZTYzFvU0J1S29aRkRPMjFHNjVJL0Zra2UKQ043a040N0NvR2plaStESEZzaW1CZHBFbDRRN3pFWG9LaGFEYVJ1M0gvcDZvS2JLbVMvZlVBbENFRGRQd1l0SAp4cmV4U0FzM0RsNnF1ZElzNS9QeHVlL055L0F4R3VrNGk0Sk5laVpNMTZwS1hBYVR0ZGUvUHoxVG5SZDVmRzZrCi9VWFBmOUNhUXV0OTVhWjJwTVdCQ2pyRmowM3EwMURHQ1dWMAotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+        server: https://localhost:6543
+      name: ""
+    contexts: null
+    current-context: ""
+    kind: Config
+    preferences: {}
+    users: null
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubeadm:cluster-info
+  namespace: kube-public
+rules:
+- apiGroups:
+  - ""
+  resourceNames:
+  - cluster-info
+  resources:
+  - configmaps
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubeadm:cluster-info
+  namespace: kube-public
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kubeadm:cluster-info
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: system:anonymous

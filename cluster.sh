@@ -1,6 +1,6 @@
 #!/bin/bash
 
-API_PORT=9443
+API_PORT=6443
 REGISTRY_PORT=5005
 remote_docker=true
 
@@ -36,7 +36,7 @@ kindV1Alpha4Cluster:
         serviceSubnet: 192.168.128.0/17
     nodes:
         - role: control-plane
-        - role: worker
+    #    - role: worker
 EOF
 
 function portforward() {

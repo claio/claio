@@ -44,6 +44,7 @@ type ControlPlaneReconciler struct {
 // +kubebuilder:rbac:groups=claio.github.com,resources=controlplanes/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=claio.github.com,resources=controlplanes/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="apps",resources=deployments,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -74,6 +75,7 @@ func (r *ControlPlaneReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&claiov1alpha1.ControlPlane{}).
 		Owns(&corev1.Secret{}).
+		Owns(&corev1.Service{}).
 		Owns(&appsv1.Deployment{}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: 1,
@@ -92,8 +94,9 @@ func (r *ControlPlaneReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			},
 			DeleteFunc: func(e event.DeleteEvent) bool {
 				isSecret := reflect.TypeOf(e.Object) == reflect.TypeOf(&corev1.Secret{})
+				isService := reflect.TypeOf(e.Object) == reflect.TypeOf(&corev1.Service{})
 				isDeployment := reflect.TypeOf(e.Object) == reflect.TypeOf(&appsv1.Deployment{})
-				return isSecret || isDeployment
+				return isSecret || isDeployment || isService
 			},
 		}).
 		Complete(r)
